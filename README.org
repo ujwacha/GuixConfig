@@ -5,23 +5,6 @@
 * Introduction
 This document will contain literate config of literally all my guix config, which will be tangled within ~$HOME/.config/guix~ Direcories
 
-How things will work
-|----------------+----------------------------------------------|
-| Config Part    | Description                                  |
-|----------------+----------------------------------------------|
-| System Config  | This part will contain all of the            |
-|                | stuff related to my system config            |
-|                | including the most inportant packaes         |
-|                | for my entire system                         |
-|----------------+----------------------------------------------|
-| Home Config    | This part will contain all of the home       |
-|                | configurations, including the fun guile      |
-|                | codes I write.                               |
-|----------------+----------------------------------------------|
-| Channel Config | This part will define all the channels I use |
-|                | Fore example the nonguix channel             |
-|----------------+----------------------------------------------|
-
 * Channel Config
 the added channels are:
 - Nonguix
@@ -56,6 +39,8 @@ Firstly import all the things required modules, this part is a bit ugly, i'll ma
 (use-package-modules audio video nfs certs shells ssh linux bash emacs
 		     gnome
 		     gnome-xyz
+		     emacs
+		     emacs-xyz
                      networking wm fonts libusb cups freedesktop
 		     file-systems
                      version-control package-management vim wm)
@@ -81,6 +66,9 @@ Firstly import all the things required modules, this part is a bit ugly, i'll ma
  (firmware (list linux-firmware
 		 sof-firmware))
 
+ (kernel-arguments (append '("resume=607f7910-12e6-404f-8664-70fa0c0f8776")
+			   %default-kernel-arguments))
+ 
  <<bootloader>>
  <<file-systems>>
  <<swap-devices>>
@@ -219,8 +207,6 @@ In the main system, there's not going to be a bunch of packages so we'll just pu
 #+BEGIN_SRC scheme
 (packages (append (list
 		   i3-wm i3status dmenu i3blocks
-		   ;;emacs emacs-exwm emacs-desktop-environment
-		   ;; terminal emulator
 		   xterm
 		   ncurses
 		   dbus
@@ -236,11 +222,9 @@ In the main system, there's not going to be a bunch of packages so we'll just pu
                    ntfs-3g
                    stow
                    vim
-		   ;;sway
-		   papersway
 		   swaylock
 		   swayidle
-		   swayfx
+		   sway
 		   mako
 		   niri
 		   gnome-shell-extension-vitals
@@ -652,12 +636,14 @@ TLP manages Power that goes into my laptop
 		  ))
 
 
-(simple-service 'bibata-gtk-file-config
+(simple-service 'bibata-manual-config
                 home-xdg-configuration-files-service-type
                 `(("gtk-3.0/settings.ini"
                    ,(plain-file "settings.ini"
+                                "[Settings]\ngtk-cursor-theme-name=Bibata-Modern-Ice\ngtk-cursor-theme-size=24"))
+                  ("gtk-4.0/settings.ini"
+                   ,(plain-file "settings.ini"
                                 "[Settings]\ngtk-cursor-theme-name=Bibata-Modern-Ice\ngtk-cursor-theme-size=24"))))
-
 #+END_SRC
 
 *** i3blocks Service
@@ -848,11 +834,15 @@ In this section, I will configure sway using guile scheme
 			       "pointer_accel 0.5"
 			       "scroll_factor 2.0")))
   
+  (sway-input (identifier "2:10:TPPS/2_Elan_TrackPoint")
+	      (extra-content '("pointer_accel 1.0")))
 
   (sway-input (identifier "type:keyboard")
 	      (layout
-	       (keyboard-layout "us" #:options '("ctrl:nocaps")))
+	       (keyboard-layout "us" #:options '("ctrl:swapcaps")))
 	      (extra-content '("repeat_rate 70")))))
+
+
 #+END_SRC
 ** Outputs
 #+NAME: sway-outputs
@@ -959,7 +949,7 @@ In this section, I will configure sway using guile scheme
    ($mod+p . "focus parent")
    ($mod+o . "focus child")
    ($mod+Shift+minus . "move scratchpad")
-   ($mod+Mod1+space . "scratchpad show")
+   ($mod+Mod1+return . "scratchpad show")
    ($mod+r . "mode \"resize\"")
    (XF86AudioRaiseVolume . "exec --no-startup-id bash ~/.scripts/volctrl i")
    (XF86AudioLowerVolume . "exec --no-startup-id bash ~/.scripts/volctrl d")
@@ -1052,5 +1042,7 @@ In this section, I will configure sway using guile scheme
   "for_window [title=\"^emacs-minibuffer$\"] floating enable, resize set 1200 600, border none"
   "for_window [title=\"^emacs-minibuffer$\"] sticky enable"
   "smart_borders on"
-  "smart_gaps on")
+  "smart_gaps on"
+  "seat seat0 xcursor_theme Bibata-Original-Classic 22"
+  )
 #+END_SRC

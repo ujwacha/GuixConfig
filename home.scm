@@ -298,12 +298,14 @@
 	   		  ))
 	   
 	   
-	   (simple-service 'bibata-gtk-file-config
+	   (simple-service 'bibata-manual-config
 	                   home-xdg-configuration-files-service-type
 	                   `(("gtk-3.0/settings.ini"
 	                      ,(plain-file "settings.ini"
+	                                   "[Settings]\ngtk-cursor-theme-name=Bibata-Modern-Ice\ngtk-cursor-theme-size=24"))
+	                     ("gtk-4.0/settings.ini"
+	                      ,(plain-file "settings.ini"
 	                                   "[Settings]\ngtk-cursor-theme-name=Bibata-Modern-Ice\ngtk-cursor-theme-size=24"))))
-	   
 	   
 	   (service home-i3blocks-service-type my-i3blocks-configlist)
 	   
@@ -331,11 +333,15 @@
 	   	   			       "pointer_accel 0.5"
 	   	   			       "scroll_factor 2.0")))
 	   	     
+	   	     (sway-input (identifier "2:10:TPPS/2_Elan_TrackPoint")
+	   	   	      (extra-content '("pointer_accel 1.0")))
 	   	   
 	   	     (sway-input (identifier "type:keyboard")
 	   	   	      (layout
-	   	   	       (keyboard-layout "us" #:options '("ctrl:nocaps")))
+	   	   	       (keyboard-layout "us" #:options '("ctrl:swapcaps")))
 	   	   	      (extra-content '("repeat_rate 70")))))
+	   	   
+	   	   
 	   	   (outputs
 	   	    (list (sway-output
 	   	           (identifier '*)
@@ -430,7 +436,7 @@
 	   	      ($mod+p . "focus parent")
 	   	      ($mod+o . "focus child")
 	   	      ($mod+Shift+minus . "move scratchpad")
-	   	      ($mod+Mod1+space . "scratchpad show")
+	   	      ($mod+Mod1+return . "scratchpad show")
 	   	      ($mod+r . "mode \"resize\"")
 	   	      (XF86AudioRaiseVolume . "exec --no-startup-id bash ~/.scripts/volctrl i")
 	   	      (XF86AudioLowerVolume . "exec --no-startup-id bash ~/.scripts/volctrl d")
@@ -466,7 +472,9 @@
 	   	       "for_window [title=\"^emacs-minibuffer$\"] floating enable, resize set 1200 600, border none"
 	   	       "for_window [title=\"^emacs-minibuffer$\"] sticky enable"
 	   	       "smart_borders on"
-	   	       "smart_gaps on")
+	   	       "smart_gaps on"
+	   	       "seat seat0 xcursor_theme Bibata-Original-Classic 22"
+	   	       )
 	   	     
 	   	     (let ((serialize (lambda (label rec)
 	   	                        (format #f "client.~a ~a ~a ~a #2ECC71 ~a"

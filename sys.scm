@@ -10,6 +10,8 @@
 (use-package-modules audio video nfs certs shells ssh linux bash emacs
 		     gnome
 		     gnome-xyz
+		     emacs
+		     emacs-xyz
                      networking wm fonts libusb cups freedesktop
 		     file-systems
                      version-control package-management vim wm)
@@ -32,6 +34,9 @@
  (firmware (list linux-firmware
 		 sof-firmware))
 
+ (kernel-arguments (append '("resume=607f7910-12e6-404f-8664-70fa0c0f8776")
+			   %default-kernel-arguments))
+ 
   (bootloader (bootloader-configuration
                (bootloader grub-efi-bootloader)
                (targets '("/boot/efi"))))
@@ -94,8 +99,6 @@
 
  (packages (append (list
  		   i3-wm i3status dmenu i3blocks
- 		   ;;emacs emacs-exwm emacs-desktop-environment
- 		   ;; terminal emulator
  		   xterm
  		   ncurses
  		   dbus
@@ -111,11 +114,9 @@
                     ntfs-3g
                     stow
                     vim
- 		   ;;sway
- 		   papersway
  		   swaylock
  		   swayidle
- 		   swayfx
+ 		   sway
  		   mako
  		   niri
  		   gnome-shell-extension-vitals
