@@ -519,7 +519,7 @@
 	   (service home-batsignal-service-type
 	           (home-batsignal-configuration
 	             (danger-level 15)
-	             (danger-command "loginctl poweroff")
+	             (danger-command "loginctl hibernate")
 	             (poll-delay 60)))
 
 	   (service home-pipewire-service-type)

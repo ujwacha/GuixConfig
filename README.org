@@ -692,12 +692,13 @@ This is the configuration list
 #+END_SRC
 
 *** Battery low service
+Hibernate should work for this
 #+NAME: battery-low-service
 #+BEGIN_SRC scheme
 (service home-batsignal-service-type
         (home-batsignal-configuration
           (danger-level 15)
-          (danger-command "loginctl poweroff")
+          (danger-command "loginctl hibernate")
           (poll-delay 60)))
 #+END_SRC
 
