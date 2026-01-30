@@ -5,6 +5,8 @@
              (gnu home services shells)
 	     (gnu home services desktop)
 	     (gnu home services sway)
+	     (gnu home services pm)
+	     (gnu home services sound)
 	     (gnu home services)
 	     (gnu services databases)
              (gnu home services shepherd)
@@ -17,6 +19,8 @@
 	     (gnu packages package-management)
 	     (gnu packages bittorrent)
 	     (gnu packages gnome)
+	     (gnu packages gnome-xyz)
+	     (gnu packages xorg)
 	     (gnu packages vim)
 	     (gnu packages terminals)
 	     (gnu packages maths)
@@ -217,6 +221,7 @@
 	fzf
 	firefox-esr
 	google-chrome-stable
+	thinkfan
 	octave
 	bc
 	acpi
@@ -231,6 +236,8 @@
 	foot
 	kitty
 	keepassxc
+	bibata-cursor-theme
+	xcursor-themes
 	nwg-launchers))
 
 (define unity-orange
@@ -285,7 +292,18 @@
 	   		home-environment-variables-service-type
 	   		`(("PATH" . ,(string-append (getenv "HOME") "/.local/bin:" "$PATH"))
 	   		  ("PICO_SDK_PATH" . ,(string-append (getenv "HOME") "/Desktop/dev_ws/src/pico-sdk/"))
-	   		  ("MOZ_ENABLE_WAYLAND" . "1")))
+	   		  ("MOZ_ENABLE_WAYLAND" . "1")
+	   		  ("XCURSOR_THEME" . "Bibata-Modern-Ice")
+	   		  ("XCURSOR_SIZE" . "24")
+	   		  ))
+	   
+	   
+	   (simple-service 'bibata-gtk-file-config
+	                   home-xdg-configuration-files-service-type
+	                   `(("gtk-3.0/settings.ini"
+	                      ,(plain-file "settings.ini"
+	                                   "[Settings]\ngtk-cursor-theme-name=Bibata-Modern-Ice\ngtk-cursor-theme-size=24"))))
+	   
 	   
 	   (service home-i3blocks-service-type my-i3blocks-configlist)
 	   
@@ -438,9 +456,9 @@
 	   	    (append
 	   	     
 	   	     `("default_border pixel 2"
-	   	       "assign [class=\"qBittorrent\"] $ws9"
-	   	       "assign [class=\"discord\"] $ws10"
-	   	       "assign [class=\"steam\"] $ws9"
+	   	       "assign [class=\"qBittorrent\"] 9"
+	   	       "assign [class=\"discord\"] 10"
+	   	       "assign [class=\"steam\"] 9"
 	   	       "for_window [app_id=\"imv\"] floating enable"
 	   	       "for_window [class=\"ThinkFan UI\"] floating enable"
 	   	       "for_window [class=\"XPaint\"] floating enable, move position 10px 10px"
@@ -490,5 +508,12 @@
 	   
 	   (service home-dbus-service-type)
 
+	   (service home-batsignal-service-type
+	           (home-batsignal-configuration
+	             (danger-level 15)
+	             (danger-command "loginctl poweroff")
+	             (poll-delay 60)))
+
+	   (service home-pipewire-service-type)
 	   )
 	  %base-home-services)))

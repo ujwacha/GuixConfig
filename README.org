@@ -61,7 +61,7 @@ Firstly import all the things required modules, this part is a bit ugly, i'll ma
                      version-control package-management vim wm)
 
 (use-service-modules dbus desktop ssh cups pm authentication xorg
-		     databases sound web)
+		     databases sound web virtualization)
 
 (use-package-modules bootloaders  ratpoison suckless wm
 		     glib xorg)
@@ -74,9 +74,10 @@ Firstly import all the things required modules, this part is a bit ugly, i'll ma
  (timezone "Asia/Kathmandu")
  (locale "en_US.utf8")
 
- 
  (kernel linux)
+
  (initrd microcode-initrd)
+
  (firmware (list linux-firmware
 		 sof-firmware))
 
@@ -110,10 +111,14 @@ this is how we add filesystems
 (file-systems (append
 	       (list
 		<<fs-root>>
+		
 		<<fs-home>>
+		
 		<<fs-snapshots>>
-		<<fs-boot>>
+		
 		<<fs-gnu-store>>
+		
+		<<fs-boot>>
 		)
 	       %base-file-systems))
 #+END_SRC
@@ -126,7 +131,7 @@ this is how we add filesystems
  (type "btrfs")
  (device
   (uuid "92b39d97-81c5-4ef5-ba2f-51600140f500"))
- (options "subvol=@"))
+ (options "subvol=@,compress=zstd,discard=async,space_cache=v2"))
 #+END_SRC
 
 *** Home
@@ -137,7 +142,7 @@ this is how we add filesystems
  (type "btrfs")
  (device
   (uuid "92b39d97-81c5-4ef5-ba2f-51600140f500"))
- (options "subvol=@home"))
+ (options "subvol=@home,compress=zstd,discard=async,space_cache=v2"))
 #+END_SRC
 
 *** Snapshots
@@ -148,7 +153,18 @@ this is how we add filesystems
  (type "btrfs")
  (device
   (uuid "92b39d97-81c5-4ef5-ba2f-51600140f500"))
- (options "subvol=@snapshots"))
+ (options "subvol=@snapshots,compress=zstd,discard=async,space_cache=v2"))
+#+END_SRC
+
+*** GNU Store
+#+NAME: fs-gnu-store
+#+BEGIN_SRC scheme
+(file-system
+ (mount-point "/gnu/store")
+ (type "btrfs")
+ (device
+  (uuid "92b39d97-81c5-4ef5-ba2f-51600140f500"))
+ (options "subvol=@store,compress=zstd,discard=async,space_cache=v2"))
 #+END_SRC
 
 *** Boot
@@ -160,29 +176,22 @@ this is how we add filesystems
  (type "vfat"))
 #+END_SRC
 
-*** GNU Store
-#+NAME: fs-gnu-store
-#+BEGIN_SRC scheme
-(file-system
- (mount-point "/gnu/store")
- (type "btrfs")
- (device
-  (uuid "92b39d97-81c5-4ef5-ba2f-51600140f500"))
- (options "subvol=@store"))
-#+END_SRC
-
 ** Swap
 #+NAME: swap-devices
 #+BEGIN_SRC scheme
 (swap-devices 
   (list
    (swap-space (target 
-		(uuid "74d60df6-0325-496e-800b-20608cc595a1")))))
+		(uuid "607f7910-12e6-404f-8664-70fa0c0f8776")))))
 #+END_SRC
 
-** Users
+** Users and Groups
 #+NAME: users
 #+BEGIN_SRC scheme :noweb yes
+(groups (cons* (user-group (name "libvirt"))
+               ;; (user-group (name "kvm"))
+               %base-groups))
+
 (users (append (list
 		<<user-light>>
 		)
@@ -199,7 +208,8 @@ This is my main user
  (group "users")
  (supplementary-groups '("wheel" "netdev"
 			 "audio" "video"
-			 "dialout")))
+			 "dialout" "libvirt"
+			 "kvm")))
 #+END_SRC
 
 ** Packages
@@ -256,6 +266,8 @@ In the main system, there's not going to be a bunch of packages so we'll just pu
 	  <<system-sql-service>>
 	  <<system-bluetooth-service>>
 	  <<system-screen-locker>>
+	  <<system-libvirt>>
+
 	  )
 	 
 	 <<modified-system-desktop-services>>
@@ -331,13 +343,18 @@ TLP manages Power that goes into my laptop
 	  (name "swaylock")
 	  (program (file-append swaylock "/bin/swaylock"))))
 #+END_SRC
-
+*** Libvirt
+#+NAME: libvirt-services
+#+BEGIN_SRC scheme
+(service libvirt-service-type)
+(service virtlog-service-type)
+#+END_SRC
 *** Modified Desktop Services
 #+NAME: modified-system-desktop-services
 #+BEGIN_SRC scheme
 (modify-services
  %desktop-services
-
+ 
  (guix-service-type config =>
 		    (guix-configuration
 		     (inherit config)
@@ -369,6 +386,8 @@ TLP manages Power that goes into my laptop
              (gnu home services shells)
 	     (gnu home services desktop)
 	     (gnu home services sway)
+	     (gnu home services pm)
+	     (gnu home services sound)
 	     (gnu home services)
 	     (gnu services databases)
              (gnu home services shepherd)
@@ -381,6 +400,8 @@ TLP manages Power that goes into my laptop
 	     (gnu packages package-management)
 	     (gnu packages bittorrent)
 	     (gnu packages gnome)
+	     (gnu packages gnome-xyz)
+	     (gnu packages xorg)
 	     (gnu packages vim)
 	     (gnu packages terminals)
 	     (gnu packages maths)
@@ -567,6 +588,7 @@ TLP manages Power that goes into my laptop
 	fzf
 	firefox-esr
 	google-chrome-stable
+	thinkfan
 	octave
 	bc
 	acpi
@@ -581,6 +603,8 @@ TLP manages Power that goes into my laptop
 	foot
 	kitty
 	keepassxc
+	bibata-cursor-theme
+	xcursor-themes
 	nwg-launchers))
 #+END_SRC
 
@@ -622,7 +646,18 @@ TLP manages Power that goes into my laptop
 		home-environment-variables-service-type
 		`(("PATH" . ,(string-append (getenv "HOME") "/.local/bin:" "$PATH"))
 		  ("PICO_SDK_PATH" . ,(string-append (getenv "HOME") "/Desktop/dev_ws/src/pico-sdk/"))
-		  ("MOZ_ENABLE_WAYLAND" . "1")))
+		  ("MOZ_ENABLE_WAYLAND" . "1")
+		  ("XCURSOR_THEME" . "Bibata-Modern-Ice")
+		  ("XCURSOR_SIZE" . "24")
+		  ))
+
+
+(simple-service 'bibata-gtk-file-config
+                home-xdg-configuration-files-service-type
+                `(("gtk-3.0/settings.ini"
+                   ,(plain-file "settings.ini"
+                                "[Settings]\ngtk-cursor-theme-name=Bibata-Modern-Ice\ngtk-cursor-theme-size=24"))))
+
 #+END_SRC
 
 *** i3blocks Service
@@ -670,10 +705,20 @@ This is the configuration list
 (service home-i3blocks-service-type my-i3blocks-configlist)
 #+END_SRC
 
-*** Sway Service
-#+NAME: home-sway-service
+*** Battery low service
+#+NAME: battery-low-service
 #+BEGIN_SRC scheme
-(service home-sway-service-type)
+(service home-batsignal-service-type
+        (home-batsignal-configuration
+          (danger-level 15)
+          (danger-command "loginctl poweroff")
+          (poll-delay 60)))
+#+END_SRC
+
+*** Pipewire
+#+NAME: home-pipewire
+#+BEGIN_SRC scheme
+(service home-pipewire-service-type)
 #+END_SRC
 
 *** D-Bus Service
@@ -726,6 +771,9 @@ this is the main home environment definition, make sure that it does not have a 
 	   
 	   <<home-dbus-service>>
 
+	   <<battery-low-service>>
+
+	   <<home-pipewire>>
 	   )
 	  %base-home-services)))
 #+END_SRC
@@ -994,9 +1042,9 @@ In this section, I will configure sway using guile scheme
 #+NAME: window-rules-extra
 #+BEGIN_SRC scheme
 `("default_border pixel 2"
-  "assign [class=\"qBittorrent\"] $ws9"
-  "assign [class=\"discord\"] $ws10"
-  "assign [class=\"steam\"] $ws9"
+  "assign [class=\"qBittorrent\"] 9"
+  "assign [class=\"discord\"] 10"
+  "assign [class=\"steam\"] 9"
   "for_window [app_id=\"imv\"] floating enable"
   "for_window [class=\"ThinkFan UI\"] floating enable"
   "for_window [class=\"XPaint\"] floating enable, move position 10px 10px"

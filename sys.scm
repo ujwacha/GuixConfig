@@ -15,7 +15,7 @@
                      version-control package-management vim wm)
 
 (use-service-modules dbus desktop ssh cups pm authentication xorg
-		     databases sound web)
+		     databases sound web virtualization)
 
 (use-package-modules bootloaders  ratpoison suckless wm
 		     glib xorg)
@@ -25,9 +25,10 @@
  (timezone "Asia/Kathmandu")
  (locale "en_US.utf8")
 
- 
  (kernel linux)
+
  (initrd microcode-initrd)
+
  (firmware (list linux-firmware
 		 sof-firmware))
 
@@ -41,36 +42,44 @@
  		 (type "btrfs")
  		 (device
  		  (uuid "92b39d97-81c5-4ef5-ba2f-51600140f500"))
- 		 (options "subvol=@"))
+ 		 (options "subvol=@,compress=zstd,discard=async,space_cache=v2"))
+ 		
  		(file-system
  		 (mount-point "/home")
  		 (type "btrfs")
  		 (device
  		  (uuid "92b39d97-81c5-4ef5-ba2f-51600140f500"))
- 		 (options "subvol=@home"))
+ 		 (options "subvol=@home,compress=zstd,discard=async,space_cache=v2"))
+ 		
  		(file-system
  		 (mount-point "/.snapshots")
  		 (type "btrfs")
  		 (device
  		  (uuid "92b39d97-81c5-4ef5-ba2f-51600140f500"))
- 		 (options "subvol=@snapshots"))
- 		(file-system
- 		 (device (uuid "EAA5-790E" 'fat))
- 		 (mount-point "/boot/efi")
- 		 (type "vfat"))
+ 		 (options "subvol=@snapshots,compress=zstd,discard=async,space_cache=v2"))
+ 		
  		(file-system
  		 (mount-point "/gnu/store")
  		 (type "btrfs")
  		 (device
  		  (uuid "92b39d97-81c5-4ef5-ba2f-51600140f500"))
- 		 (options "subvol=@store"))
+ 		 (options "subvol=@store,compress=zstd,discard=async,space_cache=v2"))
+ 		
+ 		(file-system
+ 		 (device (uuid "EAA5-790E" 'fat))
+ 		 (mount-point "/boot/efi")
+ 		 (type "vfat"))
  		)
  	       %base-file-systems))
  (swap-devices 
    (list
     (swap-space (target 
- 		(uuid "74d60df6-0325-496e-800b-20608cc595a1")))))
+ 		(uuid "607f7910-12e6-404f-8664-70fa0c0f8776")))))
 
+ (groups (cons* (user-group (name "libvirt"))
+                ;; (user-group (name "kvm"))
+                %base-groups))
+ 
  (users (append (list
  		(user-account
  		 (name "light")
@@ -78,7 +87,8 @@
  		 (group "users")
  		 (supplementary-groups '("wheel" "netdev"
  					 "audio" "video"
- 					 "dialout")))
+ 					 "dialout" "libvirt"
+ 					 "kvm")))
  		)
  	       %base-user-accounts))
 
@@ -160,11 +170,13 @@
  	  	 (screen-locker-configuration
  	  	  (name "swaylock")
  	  	  (program (file-append swaylock "/bin/swaylock"))))
+ 	  
+ 
  	  )
  	 
  	 (modify-services
  	  %desktop-services
- 	 
+ 	  
  	  (guix-service-type config =>
  	 		    (guix-configuration
  	 		     (inherit config)
