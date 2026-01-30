@@ -1,0 +1,1006 @@
+#+TITLE: My Full Guix Gonfig
+#+Author: Acharya U
+#+PROPERTY:
+
+* Introduction
+This document will contain literate config of literally all my guix config, which will be tangled within ~$HOME/.config/guix~ Direcories
+
+How things will work
+|----------------+----------------------------------------------|
+| Config Part    | Description                                  |
+|----------------+----------------------------------------------|
+| System Config  | This part will contain all of the            |
+|                | stuff related to my system config            |
+|                | including the most inportant packaes         |
+|                | for my entire system                         |
+|----------------+----------------------------------------------|
+| Home Config    | This part will contain all of the home       |
+|                | configurations, including the fun guile      |
+|                | codes I write.                               |
+|----------------+----------------------------------------------|
+| Channel Config | This part will define all the channels I use |
+|                | Fore example the nonguix channel             |
+|----------------+----------------------------------------------|
+
+* Channel Config
+the added channels are:
+- Nonguix
+
+  #+BEGIN_SRC emacs-lisp :tangle ./channels.scm
+(cons* (channel
+        (name 'nonguix)
+        (url "https://gitlab.com/nonguix/nonguix")
+        ;; Enable signature verification:
+        (introduction
+         (make-channel-introduction
+          "897c1a470da759236cc11798f4e0a5f7d4d59fbc"
+          (openpgp-fingerprint
+           "2A39 3FFF 68F4 EF7A 3D29  12AF 6F51 20A0 22FB B2D5"))))
+       %default-channels)
+  #+END_SRC
+
+* System Config
+** Modules Import
+Firstly import all the things required modules, this part is a bit ugly, i'll make it good later
+
+#+BEGIN_SRC scheme :tangle ./sys.scm
+(use-modules (gnu) 
+	     (gnu system nss)
+	     (gnu packages ncurses)
+	     (nongnu packages linux)
+	     (nongnu packages firmware)
+	     (nongnu system linux-initrd)
+	     (nongnu packages video))
+
+
+(use-package-modules audio video nfs certs shells ssh linux bash emacs
+		     gnome
+		     gnome-xyz
+                     networking wm fonts libusb cups freedesktop
+		     file-systems
+                     version-control package-management vim wm)
+
+(use-service-modules dbus desktop ssh cups pm authentication xorg
+		     databases sound web)
+
+(use-package-modules bootloaders  ratpoison suckless wm
+		     glib xorg)
+#+END_SRC
+
+** Operating system definition
+#+BEGIN_SRC scheme :tangle ./sys.scm :noweb yes
+(operating-system
+ (host-name "vogel")
+ (timezone "Asia/Kathmandu")
+ (locale "en_US.utf8")
+
+ 
+ (kernel linux)
+ (initrd microcode-initrd)
+ (firmware (list linux-firmware
+		 sof-firmware))
+
+ <<bootloader>>
+ <<file-systems>>
+ <<swap-devices>>
+
+ <<users>>
+
+ <<system-packages>>
+
+ <<system-services>>
+ 
+ (name-service-switch %mdns-host-lookup-nss))
+#+END_SRC
+
+** Bootloader
+just install grub bootloader in standard place
+
+#+NAME: bootloader
+#+BEGIN_SRC scheme
+ (bootloader (bootloader-configuration
+              (bootloader grub-efi-bootloader)
+              (targets '("/boot/efi"))))
+#+END_SRC
+
+** file systems
+this is how we add filesystems
+#+NAME: file-systems
+#+BEGIN_SRC scheme :noweb yes
+(file-systems (append
+	       (list
+		<<fs-root>>
+		<<fs-home>>
+		<<fs-snapshots>>
+		<<fs-boot>>
+		<<fs-gnu-store>>
+		)
+	       %base-file-systems))
+#+END_SRC
+
+*** Root
+#+NAME: fs-root
+#+BEGIN_SRC scheme
+(file-system
+ (mount-point "/")
+ (type "btrfs")
+ (device
+  (uuid "92b39d97-81c5-4ef5-ba2f-51600140f500"))
+ (options "subvol=@"))
+#+END_SRC
+
+*** Home
+#+NAME: fs-home
+#+BEGIN_SRC scheme
+(file-system
+ (mount-point "/home")
+ (type "btrfs")
+ (device
+  (uuid "92b39d97-81c5-4ef5-ba2f-51600140f500"))
+ (options "subvol=@home"))
+#+END_SRC
+
+*** Snapshots
+#+NAME: fs-snapshots
+#+BEGIN_SRC scheme
+(file-system
+ (mount-point "/.snapshots")
+ (type "btrfs")
+ (device
+  (uuid "92b39d97-81c5-4ef5-ba2f-51600140f500"))
+ (options "subvol=@snapshots"))
+#+END_SRC
+
+*** Boot
+#+NAME: fs-boot
+#+BEGIN_SRC scheme
+(file-system
+ (device (uuid "EAA5-790E" 'fat))
+ (mount-point "/boot/efi")
+ (type "vfat"))
+#+END_SRC
+
+*** GNU Store
+#+NAME: fs-gnu-store
+#+BEGIN_SRC scheme
+(file-system
+ (mount-point "/gnu/store")
+ (type "btrfs")
+ (device
+  (uuid "92b39d97-81c5-4ef5-ba2f-51600140f500"))
+ (options "subvol=@store"))
+#+END_SRC
+
+** Swap
+#+NAME: swap-devices
+#+BEGIN_SRC scheme
+(swap-devices 
+  (list
+   (swap-space (target 
+		(uuid "74d60df6-0325-496e-800b-20608cc595a1")))))
+#+END_SRC
+
+** Users
+#+NAME: users
+#+BEGIN_SRC scheme :noweb yes
+(users (append (list
+		<<user-light>>
+		)
+	       %base-user-accounts))
+#+END_SRC
+
+*** User Light
+This is my main user
+#+NAME: user-light
+#+BEGIN_SRC scheme
+(user-account
+ (name "light")
+ (comment "Main User")
+ (group "users")
+ (supplementary-groups '("wheel" "netdev"
+			 "audio" "video"
+			 "dialout")))
+#+END_SRC
+
+** Packages
+In the main system, there's not going to be a bunch of packages so we'll just put them in a single code block, I know It's kinda ugly, but that's the best we can do
+
+#+NAME: system-packages
+#+BEGIN_SRC scheme
+(packages (append (list
+		   i3-wm i3status dmenu i3blocks
+		   ;;emacs emacs-exwm emacs-desktop-environment
+		   ;; terminal emulator
+		   xterm
+		   ncurses
+		   dbus
+		   bluez
+                   bluez-alsa
+                   brightnessctl
+                   exfat-utils
+                   fuse-exfat
+                   git
+                   gvfs ;; Enable user mounts
+                   intel-media-driver/nonfree
+                   libva-utils
+                   ntfs-3g
+                   stow
+                   vim
+		   ;;sway
+		   papersway
+		   swaylock
+		   swayidle
+		   swayfx
+		   mako
+		   niri
+		   gnome-shell-extension-vitals
+		   gnome-shell-extension-gsconnect
+		   gnome-shell-extension-just-perfection
+		   gnome-shell-extension-paperwm
+		   gnome-shell-extension-appindicator
+		   tlp
+		   ;;power-profiles-daemon
+		   )
+		  %base-packages))
+#+END_SRC
+
+** Services
+#+NAME: system-services
+#+BEGIN_SRC scheme :noweb yes
+(services
+ (append (list
+	  
+	  <<system-openssh-service>>
+	  <<system-cups-service>>
+	  <<system-tlp-service>>
+	  <<system-sql-service>>
+	  <<system-bluetooth-service>>
+	  <<system-screen-locker>>
+	  )
+	 
+	 <<modified-system-desktop-services>>
+	 ))
+#+END_SRC
+
+*** Openssh
+#+NAME: system-openssh-service
+#+BEGIN_SRC scheme
+(service openssh-service-type)
+#+END_SRC
+
+*** Cups
+This is for printing stuff, to connect to printers basically
+#+NAME: system-cups-service
+#+BEGIN_SRC scheme
+(service gnome-desktop-service-type)
+#+END_SRC
+
+*** TLP
+TLP manages Power that goes into my laptop
+#+NAME: system-tlp-service
+#+BEGIN_SRC scheme
+(service tlp-service-type
+	 (tlp-configuration
+
+
+	  (tlp-enable? #t)
+
+	  (tlp-default-mode "AC")
+
+	  (start-charge-thresh-bat0 74)
+	  (stop-charge-thresh-bat0 84)
+	  
+
+	  (cpu-scaling-governor-on-ac '("performance"))
+	  (cpu-scaling-governor-on-bat '("powersave"))
+
+	  (cpu-energy-perf-policy-on-ac "performance")
+	  (cpu-energy-perf-policy-on-bat "power")
+	  
+
+	  (cpu-boost-on-ac? #t)
+	  (cpu-boost-on-bat? #f)
+	  
+	  (sched-powersave-on-bat? #t)))
+
+
+(extra-special-file
+ "/etc/tlp.d/50-platform-profile.conf"
+ (plain-file "50-platform-profile.conf"
+	     "PLATFORM_PROFILE_ON_AC=performance\nPLATFORM_PROFILE_ON_BAT=low-power\n"))
+#+END_SRC
+
+*** Bluetooth
+#+NAME: system-bluetooth-service
+#+BEGIN_SRC scheme
+(service bluetooth-service-type
+         (bluetooth-configuration
+          (auto-enable? #t)))
+#+END_SRC
+
+*** SQL
+#+NAME: system-sql-service
+#+BEGIN_SRC scheme
+(service mysql-service-type)
+#+END_SRC
+*** System Screen Locker enable for Sway
+#+NAME: system-screen-locker
+#+BEGIN_SRC scheme
+(service screen-locker-service-type
+	 (screen-locker-configuration
+	  (name "swaylock")
+	  (program (file-append swaylock "/bin/swaylock"))))
+#+END_SRC
+
+*** Modified Desktop Services
+#+NAME: modified-system-desktop-services
+#+BEGIN_SRC scheme
+(modify-services
+ %desktop-services
+
+ (guix-service-type config =>
+		    (guix-configuration
+		     (inherit config)
+		     (substitute-urls 
+		      (append
+		       (list
+			"https://bordeaux-singapore-mirror.cbaines.net"
+			"https://mirror.sjtu.edu.cn/guix" 
+			"https://substitutes.nonguix.org"
+			;; "https://bordeaux.guix.gnu.org"
+			)
+		       %default-substitute-urls
+		       ;;'() ;; i have the german server
+		       ))
+		     (authorized-keys
+		      (append
+		       (list (local-file "./signing-key.pub"))
+		       %default-authorized-guix-keys))
+		     )))
+#+END_SRC
+
+* Home Config
+** Home Modules Import
+#+BEGIN_SRC scheme :tangle ./home.scm
+(use-modules (gnu home)
+             (gnu packages)
+             (gnu services)
+             (guix gexp)
+             (gnu home services shells)
+	     (gnu home services desktop)
+	     (gnu home services sway)
+	     (gnu home services)
+	     (gnu services databases)
+             (gnu home services shepherd)
+	     
+	     (my services i3blocks)
+	     (gnu packages wm)
+	     (gnu packages databases)
+	     (gnu packages pulseaudio)
+	     (gnu packages video)
+	     (gnu packages package-management)
+	     (gnu packages bittorrent)
+	     (gnu packages gnome)
+	     (gnu packages vim)
+	     (gnu packages terminals)
+	     (gnu packages maths)
+	     (gnu packages algebra)
+	     (gnu packages linux)
+	     (gnu packages freedesktop)
+	     (gnu packages password-utils)
+	     (gnu packages pkg-config)
+	     (gnu packages autotools) 
+	     (gnu packages build-tools)
+	     (gnu packages cmake)
+	     (gnu packages base)
+	     (gnu packages commencement)
+	     (gnu packages llvm)
+	     (gnu packages python)
+	     (gnu packages python-xyz)
+	     (gnu packages rust)
+	     (gnu packages xdisorg)
+	     (gnu packages admin)
+	     (gnu packages java)
+	     (gnu packages sqlite)
+	     (gnu packages python-science)
+	     (gnu packages duckdb)
+	     (gnu packages web)
+	     (gnu packages tex)
+	     (gnu packages emacs)
+	     (gnu packages emacs-xyz)
+	     (gnu packages fonts)
+	     (gnu system keyboard)      ;; Required for keyboard-layout
+	     (gnu packages xdisorg)    ;; For swaylock, wl-clipboard
+	     (nongnu packages emacs)
+	     (nongnu packages fonts)
+	     (nongnu packages mozilla)
+	     (nongnu packages chrome)
+	     (nonguix multiarch-container))
+#+END_SRC
+
+** Package Definitions
+*** SQL packages
+#+NAME: sql-packages-list
+#+BEGIN_SRC scheme
+(define sql-packages-list
+  (list sqlite
+	postgresql
+	mariadb
+	sqlitebrowser
+	pgloader
+	python-psycopg2
+	python-sqlalchemy
+	python-pandas
+	duckdb
+	redis
+	jq))
+#+END_SRC
+
+*** Emacs Packages
+#+NAME: my-emacs-package-list
+#+BEGIN_SRC scheme
+(define my-emacs-package-list
+  (list emacs-pgtk
+	emacs-use-package
+	emacs-pdf-tools
+	emacs-htmlize
+	emacs-lsp-mode
+	emacs-lsp-ui
+	emacs-lsp-ivy
+	emacs-lsp-treemacs
+	emacs-guix
+	emacs-gcmh
+	emacs-ivy
+	emacs-swiper
+	emacs-php-mode
+	emacs-doom-modeline
+	emacs-all-the-icons
+	emacs-spacemacs-theme
+	emacs-doom-themes
+	emacs-rainbow-delimiters 
+	emacs-which-key
+	emacs-ivy-rich
+	emacs-counsel
+	emacs-undo-tree
+	emacs-company
+	emacs-yasnippet
+	emacs-vterm
+	emacs-beacon
+	emacs-neotree
+	emacs-helpful
+	emacs-markdown-mode
+	emacs-simple-httpd
+	emacs-elfeed
+	emacs-projectile
+	emacs-web-mode
+	emacs-typescript-mode
+	emacs-flycheck
+	emacs-magit
+	emacs-mkmcc-gnuplot-mode
+	emacs-gnuplot
+	emacs-rainbow-mode
+	emacs-all-the-icons-dired
+	emacs-emms
+	emacs-dirvish
+	emacs-drag-stuff
+	emacs-multiple-cursors
+	emacs-expand-region
+	emacs-golden-ratio
+	emacs-pyvenv
+	emacs-mentor
+	emacs-auctex
+	emacs-org
+	emacs-org-bullets
+	emacs-org-roam
+	emacs-org-roam-ui
+	emacs-gptel
+	emacs-dashboard
+	emacs-visual-fill-column
+	emacs-org-pdftools
+	emacs-ox-reveal
+	emacs-org-download
+	emacs-org-fragtog
+	emacs-flycheck-rust
+	emacs-rustic
+	emacs-counsel-projectile
+	emacs-request
+	emacs-djvu
+	emacs-nov-el
+	emacs-geiser
+	emacs-geiser-guile
+	emacs-paredit
+	emacs-macrostep
+	emacs-macrostep-geiser))
+#+END_SRC
+*** Compiler Toolchains
+#+NAME: compiler-toolchain
+#+BEGIN_SRC scheme
+(define compiler-toolchain
+  (list pkg-config
+	libtool
+	autoconf
+	automake
+	cmake
+	gcc-toolchain
+	clang-toolchain
+	python
+	python-lsp-server
+	rust
+	rust-analyzer))
+#+END_SRC
+
+*** Fonts
+#+NAME: useful-fonts
+#+BEGIN_SRC scheme
+(define useful-fonts
+  (list font-hack
+        font-google-roboto
+        font-google-noto
+        font-dejavu
+        font-liberation
+        font-microsoft-web-core-fonts
+        font-microsoft-webdings
+        font-wqy-zenhei
+        font-wqy-microhei
+        font-google-noto-emoji
+        font-adobe-source-han-serif
+        font-adobe-source-han-sans
+        font-gnu-freefont
+        font-awesome
+        font-cica))
+#+END_SRC
+
+*** Fun Programs
+#+NAME: fun-programs
+#+BEGIN_SRC scheme
+(define fun-programs
+  (list htop
+	vlc
+	flatpak
+	transmission
+	transmission-remote-gtk
+	rtorrent
+	neofetch
+	gnome-tweaks
+	vim
+	fzf
+	firefox-esr
+	google-chrome-stable
+	octave
+	bc
+	acpi
+	xdg-user-dirs
+	netcat
+	gnome-shell-extensions
+	pavucontrol
+	pamixer
+	alsa-utils
+	libnotify
+	gnuplot
+	foot
+	kitty
+	keepassxc
+	nwg-launchers))
+#+END_SRC
+
+** Home Services
+*** Bash Configuration Service
+#+NAME: home-bash-service
+#+BEGIN_SRC scheme
+(service home-bash-service-type
+	 (home-bash-configuration
+	  (bash-profile (list (local-file ".//.bash_profile" "bash_profile")
+			      (plain-file "flatpak-path-fix"
+					  "source ~/.guix-home/profile/etc/profile.d/flatpak.sh")))
+	  (aliases '(("ls" . "ls --color=auto")
+		     ("grep" . "grep --color=auto")
+		     ("ll" . "ls -alF")))
+	  (bashrc (list (plain-file "bashrc-custom"
+				    "export PS1='\\[\\e[0m\\]┌─\\[\\e[01;34m\\][\\u@\\h]\\[\\e[00m\\] - \\[\\e[01;33m\\][\\w]\\[\\e[00m\\] - \\[\\e[01;32m\\][\\!]\\[\\e[00m\\]\\n└─\\[\\e[01;31m\\][\\$]\\[\\e[00m\\] '")
+			(plain-file "bashrc-fzf-part"
+				    " eval \"$(fzf --bash)\"")))))
+#+END_SRC
+
+*** Files Service
+#+NAME: home-files-service
+#+BEGIN_SRC scheme
+(service home-files-service-type
+	 (list `(".inputrc"
+		 ,(plain-file "inputrc"
+			      "\"\\t\": menu-complete\n\"\\e[Z\": menu-complete-backward\nset colored-stats on\nset menu-complete-display-prefix on\n\n\"\\e[A\": history-search-backward\n\"\\e[B\": history-search-forward\n"))
+	       `(".config/autostart/myscript.desktop"
+		 ,(plain-file "myscript.desktop"
+			      "[Desktop Entry]\nType=Application\nName=My Startup Script\nExec=\"bash /home/light/.qolscripts/emacs-daemon.sh\"\nNoDisplay=false\nX-GNOME-Autostart-enabled=true\n"))))
+#+END_SRC
+
+*** Environment Variables Service
+#+NAME: home-env-vars-service
+#+BEGIN_SRC scheme
+(simple-service 'my-environment-variables
+		home-environment-variables-service-type
+		`(("PATH" . ,(string-append (getenv "HOME") "/.local/bin:" "$PATH"))
+		  ("PICO_SDK_PATH" . ,(string-append (getenv "HOME") "/Desktop/dev_ws/src/pico-sdk/"))
+		  ("MOZ_ENABLE_WAYLAND" . "1")))
+#+END_SRC
+
+*** i3blocks Service
+This is the configuration list
+#+NAME: my-i3blocks-config
+#+BEGIN_SRC scheme
+(define my-i3blocks-configlist
+  '(
+    (NETWORK
+     (command . "~/.scripts/which-net.sh")
+     (interval . 2))
+    
+    (DISK
+     (command . "df -h / | awk '/\\//{ printf(\" 💾 %4s/%s \\n\", $4, $2) }'")
+     (interval . 10)
+     (color . (201 227 219)))
+    
+    (BATTERY
+     (command . "~/.scripts/battery-percentage.sh")
+     (interval . 3))
+
+    (CPU
+     (command . "~/.scripts/cpu-freq-percentage.sh")
+     (interval . 1)
+     (color . (0 255 128)))
+    
+    (MEM
+     (command . "free -h | awk '/Mem:/ { printf(\" 🐏 %5s/%s \\n\", $3, $2) }'")
+     (interval . 1)
+     (color . (254 201 37)))
+    
+    (SOUND
+     (command . "~/.config/i3blocks/sound/sound_info.sh")
+     (interval . 5)
+     (signal . 10))
+
+    (TIME_DATE
+     (command . "date +\" %a, %d %b - %H:%M:%S\"")
+     (interval . 1))))
+#+END_SRC
+
+
+#+NAME: home-i3blocks-service
+#+BEGIN_SRC scheme :noweb yes
+(service home-i3blocks-service-type my-i3blocks-configlist)
+#+END_SRC
+
+*** Sway Service
+#+NAME: home-sway-service
+#+BEGIN_SRC scheme
+(service home-sway-service-type)
+#+END_SRC
+
+*** D-Bus Service
+#+NAME: home-dbus-service
+#+BEGIN_SRC scheme
+(service home-dbus-service-type)
+#+END_SRC
+
+** Main Home Environment Definition
+this is the main home environment definition, make sure that it does not have a goddamn name
+
+#+BEGIN_SRC scheme :tangle ./home.scm :noweb yes
+<<my-i3blocks-config>>
+
+<<sql-packages-list>>
+
+<<my-emacs-package-list>>
+
+<<useful-fonts>>
+
+<<compiler-toolchain>>
+
+<<fun-programs>>
+
+<<sway-unity-theme>>
+
+(home-environment
+ (packages
+  (append
+   sql-packages-list
+   (list texlive-scheme-full)
+   my-emacs-package-list
+   useful-fonts
+   compiler-toolchain
+   fun-programs
+   ))
+
+ (services
+  (append (list
+	   
+	   <<home-bash-service>>
+	   
+	   <<home-files-service>>
+	   
+	   <<home-env-vars-service>>
+	   
+	   <<home-i3blocks-service>>
+	   
+	   <<home-sway-configuration>>
+	   
+	   <<home-dbus-service>>
+
+	   )
+	  %base-home-services)))
+#+END_SRC
+
+* Sway Configuration
+In this section, I will configure sway using guile scheme
+#+NAME: home-sway-configuration
+#+BEGIN_SRC scheme :noweb yes
+;; (use-modules (gnu home services sway)
+;; 	     (gnu packages xdisorg))
+
+
+(service home-sway-service-type
+	 (sway-configuration
+	   <<sway-variables>>
+	   <<sway-packages>>
+	   <<sway-inputs>>
+	   <<sway-outputs>>
+	   <<sway-gestures>>
+	   <<sway-keybindings>>
+	   <<sway-bar>>
+	   <<sway-colors>>
+	   <<sway-startup>>
+	   ))
+#+END_SRC
+
+
+** Unity Theme
+#+NAME: sway-unity-theme
+#+BEGIN_SRC scheme
+(define unity-orange
+  (sway-border-color (border "#DD4814") (background "#DD4814") (text "#FFFFFF")))
+
+(define unity-dark
+  (sway-border-color (border "#2C2C2C") (background "#2C2C2C") (text "#AFAFAF")))
+
+(define unity-neutral
+  (sway-border-color (border "#3E3E3E") (background "#3E3E3E") (text "#DCDCDC")))
+
+(define unity-urgent
+  (sway-border-color (border "#DF382C") (background "#DF382C") (text "#FFFFFF")))
+#+END_SRC
+
+** Variables
+#+NAME: sway-variables
+#+BEGIN_SRC scheme
+(variables (append '((alt . "Mod1"))
+		   %sway-default-variables))
+#+END_SRC
+
+** Packages
+#+NAME: sway-packages
+#+BEGIN_SRC scheme
+(packages
+ (append (list swaylock
+	       wl-clipboard
+	       i3blocks)
+	 %sway-default-packages))
+#+END_SRC
+
+** Inputs
+#+NAME: sway-inputs
+#+BEGIN_SRC scheme
+(inputs
+ (list 
+  (sway-input (identifier "2:7:SynPS/2_Synaptics_TouchPad")
+	      (disable-while-typing #t)
+	      (disable-while-trackpointing #t)
+	      (tap #t)
+	      (extra-content '("natural_scroll enabled"
+			       "middle_emulation enabled"
+			       "pointer_accel 0.5"
+			       "scroll_factor 2.0")))
+  
+
+  (sway-input (identifier "type:keyboard")
+	      (layout
+	       (keyboard-layout "us" #:options '("ctrl:nocaps")))
+	      (extra-content '("repeat_rate 70")))))
+#+END_SRC
+** Outputs
+#+NAME: sway-outputs
+#+BEGIN_SRC scheme
+(outputs
+ (list (sway-output
+        (identifier '*)
+        (background "~/.config/sway/wall"))
+       (sway-output
+	 (identifier "eDP-1")
+	 (position (point (x 0)
+			  (y 0)))
+	 (resolution "1920x1080"))))
+#+END_SRC
+** Gestures
+#+NAME: sway-gestures
+#+BEGIN_SRC scheme
+(gestures  '((swipe:3:right . "workspace next_on_output")
+	     (swipe:3:left    "workspace prev_on_output" . ("exact"))
+	     (swipe:3:down . "move to scratchpad")
+	     (swipe:3:up   . "scratchpad show")))
+#+END_SRC
+** Keybindings
+#+NAME: sway-keybindings
+#+BEGIN_SRC scheme
+(keybindings
+ `(($mod+shift+return . "exec emacsclient -c")
+   ($mod+g . "exec bash /home/light/.qolscripts/lsqol.sh")
+   ($mod+Shift+d . "exec /home/light/.qolscripts/emacs_dired.sh")
+   ($mod+Mod1+$left . "resize shrink width 50px")
+   ($mod+Mod1+$down . "resize grow height 50px")
+   ($mod+Mod1+$up . "resize shrink height 50px")
+   ($mod+Mod1+$right . "resize grow width 50px")
+   (Mod1+Tab . "exec /home/light/.qolscripts/switchwindow.s")
+   ($mod+u . "exec rofi -i -show drun -show-icons")
+   ($mod+semicolon . "workspace prev")
+   ($mod+slash . "exec /home/light/.scripts/sway_workspace_change.sh i")
+   ($mod+Next . "exec /home/light/.scripts/sway_workspace_change.sh i")
+   ($mod+apostrophe . "workspace next")
+   ($mod+period . "exec /home/light/.scripts/sway_workspace_change.sh d")
+   ($mod+Prior . "exec /home/light/.scripts/sway_workspace_change.sh d")
+   ($mod+Tab . "workspace back_and_forth")
+   ($mod+Shift+semicolon . "move container to workspace prev")
+   ($mod+Shift+slash . "exec /home/light/.scripts/sway_workspace_move.sh i")
+   ($mod+Shift+apostrophe . "move container to workspace next")
+   ($mod+Shift+period . "exec /home/light/.scripts/sway_workspace_move.sh d")
+   ($mod+Shift+Tab . "move container to workspace back_and_forth")
+   ($mod+f . "exec firefox")
+   ($mod+Return . "exec $term")
+   ($mod+Shift+q . "kill")
+   ($mod+d . "exec $menu")
+   ($mod+Shift+c . "reload")
+   ($mod+Shift+e
+    . ,#~(string-append
+          "exec " #$sway "/bin/swaynag -t warning -m \\\n    "
+          "'You pressed the exit shortcut.  Do you really want to exit sway?"
+          " This will end your Wayland session.' \\\n    "
+          "-B 'Yes, exit sway' \\\n    '"
+          #$sway "/bin/swaymsg exit'"))
+   ($mod+$left . "focus left")
+   ($mod+$down . "focus down")
+   ($mod+$up . "focus up")
+   ($mod+$right . "focus right")
+   ($mod+Left . "focus left")
+   ($mod+Down . "focus down")
+   ($mod+Up . "focus up")
+   ($mod+Right . "focus right")
+   ($mod+Shift+$left . "move left")
+   ($mod+Shift+$down . "move down")
+   ($mod+Shift+$up . "move up")
+   ($mod+Shift+$right . "move right")
+   ($mod+Shift+Left . "move left")
+   ($mod+Shift+Down . "move down")
+   ($mod+Shift+Up . "move up")
+   ($mod+Shift+Right . "move right")
+   ($mod+1 . "workspace number 1")
+   ($mod+2 . "workspace number 2")
+   ($mod+3 . "workspace number 3")
+   ($mod+4 . "workspace number 4")
+   ($mod+5 . "workspace number 5")
+   ($mod+6 . "workspace number 6")
+   ($mod+7 . "workspace number 7")
+   ($mod+8 . "workspace number 8")
+   ($mod+9 . "workspace number 9")
+   ($mod+0 . "workspace number 10")
+   ($mod+Shift+1 . "move container to workspace number 1")
+   ($mod+Shift+2 . "move container to workspace number 2")
+   ($mod+Shift+3 . "move container to workspace number 3")
+   ($mod+Shift+4 . "move container to workspace number 4")
+   ($mod+Shift+5 . "move container to workspace number 5")
+   ($mod+Shift+6 . "move container to workspace number 6")
+   ($mod+Shift+7 . "move container to workspace number 7")
+   ($mod+Shift+8 . "move container to workspace number 8")
+   ($mod+Shift+9 . "move container to workspace number 9")
+   ($mod+Shift+0 . "move container to workspace number 10")
+   ($mod+q . "splith")
+   ($mod+w . "splitv")
+   ($mod+s . "layout stacking")
+   ($mod+t . "layout tabbed")
+   ($mod+e . "layout toggle split")
+   ($mod+n . "fullscreen")
+   ($mod+Shift+space . "floating toggle")
+   ($mod+space . "focus mode_toggle")
+   ($mod+p . "focus parent")
+   ($mod+o . "focus child")
+   ($mod+Shift+minus . "move scratchpad")
+   ($mod+Mod1+space . "scratchpad show")
+   ($mod+r . "mode \"resize\"")
+   (XF86AudioRaiseVolume . "exec --no-startup-id bash ~/.scripts/volctrl i")
+   (XF86AudioLowerVolume . "exec --no-startup-id bash ~/.scripts/volctrl d")
+   (XF86AudioMute . "exec --no-startup-id bash ~/.scripts/volctrl p")
+   (XF86AudioMicMute . "exec --no-startup-id pactl set-source-mute 0 toggle")
+   (XF86MonBrightnessUp . "exec brightnessctl set 5%+")
+   (XF86MonBrightnessDown . "exec brightnessctl set 5%-")
+   )
+ )
+#+END_SRC
+** Bar
+#+NAME: sway-bar
+#+BEGIN_SRC scheme
+(bar (sway-bar
+       (position 'top)
+       (hidden-state 'show)
+       (binding-mode-indicator #t)
+       (status-command "i3blocks")
+       (colors (sway-color
+               (background "#2C2C2C")
+               (statusline "#DCDCDC")
+               (focused-workspace unity-orange)
+               (active-workspace  unity-neutral)
+               (inactive-workspace unity-dark)
+               (urgent-workspace  unity-urgent)))))
+#+END_SRC
+
+** Colors
+#+NAME: sway-colors
+#+BEGIN_SRC scheme :noweb yes
+(extra-content
+ (append
+  
+  <<window-rules-extra>>
+  
+  (let ((serialize (lambda (label rec)
+                     (format #f "client.~a ~a ~a ~a #2ECC71 ~a"
+                             label
+                             (sway-border-color-border rec)
+                             (sway-border-color-background rec)
+                             (sway-border-color-text rec)
+                             (sway-border-color-border rec)))))
+    (list
+     (serialize "focused"          unity-orange)
+     (serialize "focused_inactive" unity-neutral)
+     (serialize "unfocused"        unity-dark)
+     (serialize "urgent"           unity-urgent)
+     "client.background #2C2C2C"))))
+    #+END_SRC
+
+** Startup
+#+NAME: sway-startup
+#+BEGIN_SRC scheme
+(startup-programs 
+ (list
+  #~(string-append
+     #$swayidle "/bin/swayidle -w \\\n    "
+     ;; 300: lock screen.
+     "timeout 300 '" #$swaylock "/bin/swaylock "
+     "--indicator-radius 75 \\\n    "
+     "-i " #$sway
+     "/share/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png \\\n    "
+     "-f -c 000000' \\\n    "
+     ;; 600: lock + screen off.
+     "timeout 600 '" #$sway "/bin/swaymsg \"output * power off\"' \\\n    "
+     ;; 900: Sleep
+     ;;    "timeout 900 '" #$sway "/bin/swaymsg \"output * power off\"' \\\n    "
+     ;; "timeout 900 '" #$(file-append elogind "/bin/loginctl") " suspend' \\\n    "
+     "timeout 900 '/run/current-system/profile/bin/loginctl suspend' \\\n    "
+     ;; Resume + sleep.
+     "resume '" #$sway "/bin/swaymsg \"output * power on\"' \\\n    "
+     "before-sleep '" #$swaylock "/bin/swaylock -f -c 000000'")
+  
+  "~/.qolscripts/emacs-daemon.sh"
+  "mako"
+  ))
+#+END_SRC
+
+** Extra content, window rules
+#+NAME: window-rules-extra
+#+BEGIN_SRC scheme
+`("default_border pixel 2"
+  "assign [class=\"qBittorrent\"] $ws9"
+  "assign [class=\"discord\"] $ws10"
+  "assign [class=\"steam\"] $ws9"
+  "for_window [app_id=\"imv\"] floating enable"
+  "for_window [class=\"ThinkFan UI\"] floating enable"
+  "for_window [class=\"XPaint\"] floating enable, move position 10px 10px"
+  "for_window [class=\"TopLevelShell\"] floating enable"
+  "for_window [title=\"^emacs-minibuffer$\"] floating enable, resize set 1200 600, border none"
+  "for_window [title=\"^emacs-minibuffer$\"] sticky enable"
+  "smart_borders on"
+  "smart_gaps on")
+#+END_SRC
