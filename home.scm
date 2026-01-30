@@ -72,11 +72,16 @@
      (command . "~/.scripts/battery-percentage.sh")
      (interval . 3))
 
+    (FAN
+     (command . "~/.scripts/fan-speed.sh")
+     (interval . 3)
+     (color . (254 201 37)))
+    
     (CPU
      (command . "~/.scripts/cpu-freq-percentage.sh")
      (interval . 1)
      (color . (0 255 128)))
-    
+
     (MEM
      (command . "free -h | awk '/Mem:/ { printf(\" 🐏 %5s/%s \\n\", $3, $2) }'")
      (interval . 1)
