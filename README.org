@@ -631,8 +631,8 @@ TLP manages Power that goes into my laptop
 		`(("PATH" . ,(string-append (getenv "HOME") "/.local/bin:" "$PATH"))
 		  ("PICO_SDK_PATH" . ,(string-append (getenv "HOME") "/Desktop/dev_ws/src/pico-sdk/"))
 		  ("MOZ_ENABLE_WAYLAND" . "1")
-		  ("XCURSOR_THEME" . "Bibata-Modern-Ice")
-		  ("XCURSOR_SIZE" . "24")
+		  ("XCURSOR_THEME" . "Bibata-Original-Classic")
+		  ("XCURSOR_SIZE" . "22")
 		  ))
 
 
@@ -860,8 +860,8 @@ In this section, I will configure sway using guile scheme
 ** Gestures
 #+NAME: sway-gestures
 #+BEGIN_SRC scheme
-(gestures  '((swipe:3:right . "workspace next_on_output")
-	     (swipe:3:left    "workspace prev_on_output" . ("exact"))
+(gestures  '((swipe:3:left . "workspace next_on_output")
+	     (swipe:3:right    "workspace prev_on_output" . ("exact"))
 	     (swipe:3:down . "move to scratchpad")
 	     (swipe:3:up   . "scratchpad show")))
 #+END_SRC

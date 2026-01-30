@@ -293,8 +293,8 @@
 	   		`(("PATH" . ,(string-append (getenv "HOME") "/.local/bin:" "$PATH"))
 	   		  ("PICO_SDK_PATH" . ,(string-append (getenv "HOME") "/Desktop/dev_ws/src/pico-sdk/"))
 	   		  ("MOZ_ENABLE_WAYLAND" . "1")
-	   		  ("XCURSOR_THEME" . "Bibata-Modern-Ice")
-	   		  ("XCURSOR_SIZE" . "24")
+	   		  ("XCURSOR_THEME" . "Bibata-Original-Classic")
+	   		  ("XCURSOR_SIZE" . "22")
 	   		  ))
 	   
 	   
@@ -351,8 +351,8 @@
 	   	   	 (position (point (x 0)
 	   	   			  (y 0)))
 	   	   	 (resolution "1920x1080"))))
-	   	   (gestures  '((swipe:3:right . "workspace next_on_output")
-	   	   	     (swipe:3:left    "workspace prev_on_output" . ("exact"))
+	   	   (gestures  '((swipe:3:left . "workspace next_on_output")
+	   	   	     (swipe:3:right    "workspace prev_on_output" . ("exact"))
 	   	   	     (swipe:3:down . "move to scratchpad")
 	   	   	     (swipe:3:up   . "scratchpad show")))
 	   	   (keybindings
