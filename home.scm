@@ -103,6 +103,7 @@
 (define my-emacs-package-list
   (list emacs-pgtk
 	emacs-use-package
+	emacs-forge
 	emacs-pdf-tools
 	emacs-htmlize
 	emacs-lsp-mode
@@ -265,7 +266,8 @@
 	   					  "source ~/.guix-home/profile/etc/profile.d/flatpak.sh")))
 	   	  (aliases '(("ls" . "ls --color=auto")
 	   		     ("grep" . "grep --color=auto")
-	   		     ("ll" . "ls -alF")))
+	   		     ("ll" . "ls -alF")
+	   		     ("gcon" . "cd ~/.config/guix/")))
 	   	  (bashrc (list (plain-file "bashrc-custom"
 	   				    "export PS1='\\[\\e[0m\\]┌─\\[\\e[01;34m\\][\\u@\\h]\\[\\e[00m\\] - \\[\\e[01;33m\\][\\w]\\[\\e[00m\\] - \\[\\e[01;32m\\][\\!]\\[\\e[00m\\]\\n└─\\[\\e[01;31m\\][\\$]\\[\\e[00m\\] '")
 	   			(plain-file "bashrc-fzf-part"
