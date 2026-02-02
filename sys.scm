@@ -98,6 +98,7 @@
  	       %base-user-accounts))
 
  (packages (append (list
+ 		   fwupd-nonfree
  		   i3-wm i3status dmenu i3blocks
  		   xterm
  		   ncurses
@@ -172,7 +173,11 @@
  	  	  (name "swaylock")
  	  	  (program (file-append swaylock "/bin/swaylock"))))
  	  
- 
+ 	  (simple-service 'dbus-fwupd dbus-root-service-type 
+ 	                  (list fwupd-nonfree))
+ 	  (simple-service 'polkit-fwupd polkit-service-type 
+ 	                  (list fwupd-nonfree))
+ 	  
  	  )
  	 
  	 (modify-services

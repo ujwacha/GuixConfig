@@ -19,8 +19,10 @@
 	     (gnu packages package-management)
 	     (gnu packages bittorrent)
 	     (gnu packages gnome)
+	     (gnu packages image)
 	     (gnu packages gnome-xyz)
 	     (gnu packages xorg)
+	     (gnu packages shellutils)
 	     (gnu packages vim)
 	     (gnu packages terminals)
 	     (gnu packages maths)
@@ -38,6 +40,7 @@
 	     (gnu packages python)
 	     (gnu packages python-xyz)
 	     (gnu packages rust)
+	     (gnu packages rust-apps)
 	     (gnu packages xdisorg)
 	     (gnu packages admin)
 	     (gnu packages java)
@@ -112,6 +115,8 @@
 (define my-emacs-package-list
   (list emacs-pgtk
 	emacs-use-package
+	emacs-envrc
+	emacs-helm
 	emacs-forge
 	emacs-pdf-tools
 	emacs-htmlize
@@ -136,6 +141,7 @@
 	emacs-company
 	emacs-yasnippet
 	emacs-vterm
+	emacs-multi-vterm
 	emacs-beacon
 	emacs-neotree
 	emacs-helpful
@@ -211,6 +217,9 @@
 	python
 	python-lsp-server
 	rust
+	(list rust "cargo")
+	(list rust "rust-src")
+	(list rust "tools")
 	rust-analyzer))
 
 (define fun-programs
@@ -239,11 +248,14 @@
 	libnotify
 	gnuplot
 	foot
+	grim
+	slurp
+	direnv
 	kitty
+	kanata
 	keepassxc
 	bibata-cursor-theme
-	xcursor-themes
-	nwg-launchers))
+	xcursor-themes))
 
 (define unity-orange
   (sway-border-color (border "#DD4814") (background "#DD4814") (text "#FFFFFF")))
@@ -272,18 +284,36 @@
   (append (list
 	   
 	   (service home-bash-service-type
-	   	 (home-bash-configuration
-	   	  (bash-profile (list (local-file ".//.bash_profile" "bash_profile")
-	   			      (plain-file "flatpak-path-fix"
-	   					  "source ~/.guix-home/profile/etc/profile.d/flatpak.sh")))
-	   	  (aliases '(("ls" . "ls --color=auto")
-	   		     ("grep" . "grep --color=auto")
-	   		     ("ll" . "ls -alF")
-	   		     ("gcon" . "cd ~/.config/guix/")))
-	   	  (bashrc (list (plain-file "bashrc-custom"
-	   				    "export PS1='\\[\\e[0m\\]┌─\\[\\e[01;34m\\][\\u@\\h]\\[\\e[00m\\] - \\[\\e[01;33m\\][\\w]\\[\\e[00m\\] - \\[\\e[01;32m\\][\\!]\\[\\e[00m\\]\\n└─\\[\\e[01;31m\\][\\$]\\[\\e[00m\\] '")
-	   			(plain-file "bashrc-fzf-part"
-	   				    " eval \"$(fzf --bash)\"")))))
+	            (home-bash-configuration
+	             (bash-profile (list (local-file ".//.bash_profile" "bash_profile")
+	                                 (plain-file "flatpak-path-fix"
+	                                             "source ~/.guix-home/profile/etc/profile.d/flatpak.sh")))
+	             (aliases '(("ls" . "ls --color=auto")
+	                        ("grep" . "grep --color=auto")
+	                        ("ll" . "ls -alF")
+	                        ("gcon" . "cd ~/.config/guix/")))
+	             (bashrc (list
+	            (plain-file "bashrc-integrated"
+	                        "
+	   # 1. External Hooks
+	   eval \"$(fzf --bash)\"
+	   eval \"$(direnv hook bash)\"
+	   
+	   # 2. Refined Guix Indicator Function
+	   get_guix_indicator() {
+	       if [ -n \"$GUIX_ENVIRONMENT\" ]; then
+	           echo -ne \"\\001\\033[01;35m\\002[Guix]\\001\\033[00m\\002\"
+	       elif [ -n \"$DIRENV_DIR\" ]; then
+	           # Only show if direnv has loaded a Guix store-based profile
+	           if [[ \"$PKG_CONFIG_PATH\" == *\"/gnu/store/\"*\"-profile/\"* ]]; then
+	               echo -ne \"\\001\\033[01;35m\\002[Guix]\\001\\033[00m\\002\"
+	           fi
+	       fi
+	   }
+	   
+	   # 3. Final PS1
+	   export PS1='\\001\\033[0m\\002┌─\\001\\033[01;34m\\002[\\u@\\h]\\001\\033[00m\\002$(get_guix_indicator) - \\001\\033[01;33m\\002[\\w]\\001\\033[00m\\002 - \\001\\033[01;32m\\002[\\!]\\001\\033[00m\\002\\n└─\\001\\033[01;31m\\002[\\$]\\001\\033[00m\\002 '
+	   ")))))
 	   
 	   (service home-files-service-type
 	   	 (list `(".inputrc"
@@ -313,10 +343,6 @@
 	                                   "[Settings]\ngtk-cursor-theme-name=Bibata-Modern-Ice\ngtk-cursor-theme-size=24"))))
 	   
 	   (service home-i3blocks-service-type my-i3blocks-configlist)
-	   
-	   ;; (use-modules (gnu home services sway)
-	   ;; 	     (gnu packages xdisorg))
-	   
 	   
 	   (service home-sway-service-type
 	   	 (sway-configuration
@@ -361,7 +387,8 @@
 	   	   	     (swipe:3:down . "move to scratchpad")
 	   	   	     (swipe:3:up   . "scratchpad show")))
 	   	   (keybindings
-	   	    `(($mod+shift+return . "exec emacsclient -c")
+	   	    `(
+	   	      ($mod+shift+return . "exec emacsclient -c")
 	   	      ($mod+g . "exec bash /home/light/.qolscripts/lsqol.sh")
 	   	      ($mod+Shift+d . "exec /home/light/.qolscripts/emacs_dired.sh")
 	   	      ($mod+Mod1+$left . "resize shrink width 50px")
@@ -383,6 +410,12 @@
 	   	      ($mod+Shift+period . "exec /home/light/.scripts/sway_workspace_move.sh d")
 	   	      ($mod+Shift+Tab . "move container to workspace back_and_forth")
 	   	      ($mod+f . "exec firefox")
+	   	         (XF86AudioRaiseVolume . "exec --no-startup-id bash ~/.scripts/volctrl i")
+	   	         (XF86AudioLowerVolume . "exec --no-startup-id bash ~/.scripts/volctrl d")
+	   	         (XF86AudioMute . "exec --no-startup-id bash ~/.scripts/volctrl p")
+	   	         (XF86AudioMicMute . "exec --no-startup-id pactl set-source-mute 0 toggle")
+	   	         (XF86MonBrightnessUp . "exec brightnessctl set 5%+")
+	   	         (XF86MonBrightnessDown . "exec brightnessctl set 5%-")
 	   	      ($mod+Return . "exec $term")
 	   	      ($mod+Shift+q . "kill")
 	   	      ($mod+d . "exec $menu")
@@ -430,25 +463,19 @@
 	   	      ($mod+Shift+8 . "move container to workspace number 8")
 	   	      ($mod+Shift+9 . "move container to workspace number 9")
 	   	      ($mod+Shift+0 . "move container to workspace number 10")
-	   	      ($mod+q . "splith")
-	   	      ($mod+w . "splitv")
+	   	      ($mod+q . "splith") ;; user modified 
+	   	      ($mod+w . "splitv") ;; user modified
 	   	      ($mod+s . "layout stacking")
 	   	      ($mod+t . "layout tabbed")
 	   	      ($mod+e . "layout toggle split")
-	   	      ($mod+n . "fullscreen")
+	   	      ($mod+n . "fullscreen") ;; user modified
 	   	      ($mod+Shift+space . "floating toggle")
 	   	      ($mod+space . "focus mode_toggle")
-	   	      ($mod+p . "focus parent")
-	   	      ($mod+o . "focus child")
+	   	      ($mod+p . "focus parent") ;; user modified
+	   	      ($mod+o . "focus child") ;; user modified
 	   	      ($mod+Shift+minus . "move scratchpad")
-	   	      ($mod+Mod1+return . "scratchpad show")
+	   	      ($mod+Mod1+return . "scratchpad show") ;; user modified
 	   	      ($mod+r . "mode \"resize\"")
-	   	      (XF86AudioRaiseVolume . "exec --no-startup-id bash ~/.scripts/volctrl i")
-	   	      (XF86AudioLowerVolume . "exec --no-startup-id bash ~/.scripts/volctrl d")
-	   	      (XF86AudioMute . "exec --no-startup-id bash ~/.scripts/volctrl p")
-	   	      (XF86AudioMicMute . "exec --no-startup-id pactl set-source-mute 0 toggle")
-	   	      (XF86MonBrightnessUp . "exec brightnessctl set 5%+")
-	   	      (XF86MonBrightnessDown . "exec brightnessctl set 5%-")
 	   	      )
 	   	    )
 	   	   (bar (sway-bar
@@ -479,6 +506,7 @@
 	   	       "smart_borders on"
 	   	       "smart_gaps on"
 	   	       "seat seat0 xcursor_theme Bibata-Original-Classic 22"
+	   	       "floating_modifier $mod normal"
 	   	       )
 	   	     
 	   	     (let ((serialize (lambda (label rec)
@@ -501,11 +529,11 @@
 	   	        ;; 300: lock screen.
 	   	        "timeout 300 '" #$swaylock "/bin/swaylock "
 	   	        "--indicator-radius 75 \\\n    "
-	   	        "-i " #$sway
-	   	        "/share/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png \\\n    "
+	   	        "-i "
+	   	        "~/.config/sway/wall \\\n    "
 	   	        "-f -c 000000' \\\n    "
 	   	        ;; 600: lock + screen off.
-	   	        "timeout 600 '" #$sway "/bin/swaymsg \"output * power off\"' \\\n    "
+	   	   ;;     "timeout 600 '" #$sway "/bin/swaymsg \"output * power off\"' \\\n    "
 	   	        ;; 900: Sleep
 	   	        ;;    "timeout 900 '" #$sway "/bin/swaymsg \"output * power off\"' \\\n    "
 	   	        ;; "timeout 900 '" #$(file-append elogind "/bin/loginctl") " suspend' \\\n    "
@@ -516,6 +544,7 @@
 	   	     
 	   	     "~/.qolscripts/emacs-daemon.sh"
 	   	     "mako"
+	   	     "transmission-daemon"
 	   	     ))
 	   	   ))
 	   

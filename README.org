@@ -1,4 +1,4 @@
-#+TITLE: My Full Guix Gonfig
+#+TITLE: My Full Guix Config
 #+Author: Acharya U
 #+PROPERTY:
 
@@ -206,6 +206,7 @@ In the main system, there's not going to be a bunch of packages so we'll just pu
 #+NAME: system-packages
 #+BEGIN_SRC scheme
 (packages (append (list
+		   fwupd-nonfree
 		   i3-wm i3status dmenu i3blocks
 		   xterm
 		   ncurses
@@ -251,7 +252,8 @@ In the main system, there's not going to be a bunch of packages so we'll just pu
 	  <<system-bluetooth-service>>
 	  <<system-screen-locker>>
 	  <<system-libvirt>>
-
+	  <<system-fwupd>>
+	  
 	  )
 	 
 	 <<modified-system-desktop-services>>
@@ -333,6 +335,14 @@ TLP manages Power that goes into my laptop
 (service libvirt-service-type)
 (service virtlog-service-type)
 #+END_SRC
+*** Fwupd
+#+NAME: system-fwupd
+#+BEGIN_SRC scheme
+(simple-service 'dbus-fwupd dbus-root-service-type 
+                (list fwupd-nonfree))
+(simple-service 'polkit-fwupd polkit-service-type 
+                (list fwupd-nonfree))
+#+END_SRC
 *** Modified Desktop Services
 #+NAME: modified-system-desktop-services
 #+BEGIN_SRC scheme
@@ -384,8 +394,10 @@ TLP manages Power that goes into my laptop
 	     (gnu packages package-management)
 	     (gnu packages bittorrent)
 	     (gnu packages gnome)
+	     (gnu packages image)
 	     (gnu packages gnome-xyz)
 	     (gnu packages xorg)
+	     (gnu packages shellutils)
 	     (gnu packages vim)
 	     (gnu packages terminals)
 	     (gnu packages maths)
@@ -403,6 +415,7 @@ TLP manages Power that goes into my laptop
 	     (gnu packages python)
 	     (gnu packages python-xyz)
 	     (gnu packages rust)
+	     (gnu packages rust-apps)
 	     (gnu packages xdisorg)
 	     (gnu packages admin)
 	     (gnu packages java)
@@ -447,6 +460,8 @@ TLP manages Power that goes into my laptop
 (define my-emacs-package-list
   (list emacs-pgtk
 	emacs-use-package
+	emacs-envrc
+	emacs-helm
 	emacs-forge
 	emacs-pdf-tools
 	emacs-htmlize
@@ -471,6 +486,7 @@ TLP manages Power that goes into my laptop
 	emacs-company
 	emacs-yasnippet
 	emacs-vterm
+	emacs-multi-vterm
 	emacs-beacon
 	emacs-neotree
 	emacs-helpful
@@ -532,6 +548,9 @@ TLP manages Power that goes into my laptop
 	python
 	python-lsp-server
 	rust
+	(list rust "cargo")
+	(list rust "rust-src")
+	(list rust "tools")
 	rust-analyzer))
 #+END_SRC
 
@@ -585,11 +604,14 @@ TLP manages Power that goes into my laptop
 	libnotify
 	gnuplot
 	foot
+	grim
+	slurp
+	direnv
 	kitty
+	kanata
 	keepassxc
 	bibata-cursor-theme
-	xcursor-themes
-	nwg-launchers))
+	xcursor-themes))
 #+END_SRC
 
 ** Home Services
@@ -597,18 +619,36 @@ TLP manages Power that goes into my laptop
 #+NAME: home-bash-service
 #+BEGIN_SRC scheme
 (service home-bash-service-type
-	 (home-bash-configuration
-	  (bash-profile (list (local-file ".//.bash_profile" "bash_profile")
-			      (plain-file "flatpak-path-fix"
-					  "source ~/.guix-home/profile/etc/profile.d/flatpak.sh")))
-	  (aliases '(("ls" . "ls --color=auto")
-		     ("grep" . "grep --color=auto")
-		     ("ll" . "ls -alF")
-		     ("gcon" . "cd ~/.config/guix/")))
-	  (bashrc (list (plain-file "bashrc-custom"
-				    "export PS1='\\[\\e[0m\\]┌─\\[\\e[01;34m\\][\\u@\\h]\\[\\e[00m\\] - \\[\\e[01;33m\\][\\w]\\[\\e[00m\\] - \\[\\e[01;32m\\][\\!]\\[\\e[00m\\]\\n└─\\[\\e[01;31m\\][\\$]\\[\\e[00m\\] '")
-			(plain-file "bashrc-fzf-part"
-				    " eval \"$(fzf --bash)\"")))))
+         (home-bash-configuration
+          (bash-profile (list (local-file ".//.bash_profile" "bash_profile")
+                              (plain-file "flatpak-path-fix"
+                                          "source ~/.guix-home/profile/etc/profile.d/flatpak.sh")))
+          (aliases '(("ls" . "ls --color=auto")
+                     ("grep" . "grep --color=auto")
+                     ("ll" . "ls -alF")
+                     ("gcon" . "cd ~/.config/guix/")))
+          (bashrc (list
+         (plain-file "bashrc-integrated"
+                     "
+# 1. External Hooks
+eval \"$(fzf --bash)\"
+eval \"$(direnv hook bash)\"
+
+# 2. Refined Guix Indicator Function
+get_guix_indicator() {
+    if [ -n \"$GUIX_ENVIRONMENT\" ]; then
+        echo -ne \"\\001\\033[01;35m\\002[Guix]\\001\\033[00m\\002\"
+    elif [ -n \"$DIRENV_DIR\" ]; then
+        # Only show if direnv has loaded a Guix store-based profile
+        if [[ \"$PKG_CONFIG_PATH\" == *\"/gnu/store/\"*\"-profile/\"* ]]; then
+            echo -ne \"\\001\\033[01;35m\\002[Guix]\\001\\033[00m\\002\"
+        fi
+    fi
+}
+
+# 3. Final PS1
+export PS1='\\001\\033[0m\\002┌─\\001\\033[01;34m\\002[\\u@\\h]\\001\\033[00m\\002$(get_guix_indicator) - \\001\\033[01;33m\\002[\\w]\\001\\033[00m\\002 - \\001\\033[01;32m\\002[\\!]\\001\\033[00m\\002\\n└─\\001\\033[01;31m\\002[\\$]\\001\\033[00m\\002 '
+")))))
 #+END_SRC
 
 *** Files Service
@@ -774,10 +814,6 @@ this is the main home environment definition, make sure that it does not have a 
 In this section, I will configure sway using guile scheme
 #+NAME: home-sway-configuration
 #+BEGIN_SRC scheme :noweb yes
-;; (use-modules (gnu home services sway)
-;; 	     (gnu packages xdisorg))
-
-
 (service home-sway-service-type
 	 (sway-configuration
 	   <<sway-variables>>
@@ -827,6 +863,12 @@ In this section, I will configure sway using guile scheme
 #+END_SRC
 
 ** Inputs
+Use result from this code block to find out about the inputs
+#+BEGIN_SRC bash
+swaymsg -t get_inputs
+#+END_SRC
+
+
 #+NAME: sway-inputs
 #+BEGIN_SRC scheme
 (inputs
@@ -851,6 +893,12 @@ In this section, I will configure sway using guile scheme
 
 #+END_SRC
 ** Outputs
+Use result from this code block to find out about the outputs
+#+BEGIN_SRC bash
+swaymsg -t get_outputs
+#+END_SRC
+
+
 #+NAME: sway-outputs
 #+BEGIN_SRC scheme
 (outputs
@@ -873,99 +921,119 @@ In this section, I will configure sway using guile scheme
 #+END_SRC
 ** Keybindings
 #+NAME: sway-keybindings
-#+BEGIN_SRC scheme
+#+BEGIN_SRC scheme :noweb yes 
 (keybindings
- `(($mod+shift+return . "exec emacsclient -c")
-   ($mod+g . "exec bash /home/light/.qolscripts/lsqol.sh")
-   ($mod+Shift+d . "exec /home/light/.qolscripts/emacs_dired.sh")
-   ($mod+Mod1+$left . "resize shrink width 50px")
-   ($mod+Mod1+$down . "resize grow height 50px")
-   ($mod+Mod1+$up . "resize shrink height 50px")
-   ($mod+Mod1+$right . "resize grow width 50px")
-   (Mod1+Tab . "exec /home/light/.qolscripts/switchwindow.s")
-   ($mod+u . "exec rofi -i -show drun -show-icons")
-   ($mod+semicolon . "workspace prev")
-   ($mod+slash . "exec /home/light/.scripts/sway_workspace_change.sh i")
-   ($mod+Next . "exec /home/light/.scripts/sway_workspace_change.sh i")
-   ($mod+apostrophe . "workspace next")
-   ($mod+period . "exec /home/light/.scripts/sway_workspace_change.sh d")
-   ($mod+Prior . "exec /home/light/.scripts/sway_workspace_change.sh d")
-   ($mod+Tab . "workspace back_and_forth")
-   ($mod+Shift+semicolon . "move container to workspace prev")
-   ($mod+Shift+slash . "exec /home/light/.scripts/sway_workspace_move.sh i")
-   ($mod+Shift+apostrophe . "move container to workspace next")
-   ($mod+Shift+period . "exec /home/light/.scripts/sway_workspace_move.sh d")
-   ($mod+Shift+Tab . "move container to workspace back_and_forth")
-   ($mod+f . "exec firefox")
-   ($mod+Return . "exec $term")
-   ($mod+Shift+q . "kill")
-   ($mod+d . "exec $menu")
-   ($mod+Shift+c . "reload")
-   ($mod+Shift+e
-    . ,#~(string-append
-          "exec " #$sway "/bin/swaynag -t warning -m \\\n    "
-          "'You pressed the exit shortcut.  Do you really want to exit sway?"
-          " This will end your Wayland session.' \\\n    "
-          "-B 'Yes, exit sway' \\\n    '"
-          #$sway "/bin/swaymsg exit'"))
-   ($mod+$left . "focus left")
-   ($mod+$down . "focus down")
-   ($mod+$up . "focus up")
-   ($mod+$right . "focus right")
-   ($mod+Left . "focus left")
-   ($mod+Down . "focus down")
-   ($mod+Up . "focus up")
-   ($mod+Right . "focus right")
-   ($mod+Shift+$left . "move left")
-   ($mod+Shift+$down . "move down")
-   ($mod+Shift+$up . "move up")
-   ($mod+Shift+$right . "move right")
-   ($mod+Shift+Left . "move left")
-   ($mod+Shift+Down . "move down")
-   ($mod+Shift+Up . "move up")
-   ($mod+Shift+Right . "move right")
-   ($mod+1 . "workspace number 1")
-   ($mod+2 . "workspace number 2")
-   ($mod+3 . "workspace number 3")
-   ($mod+4 . "workspace number 4")
-   ($mod+5 . "workspace number 5")
-   ($mod+6 . "workspace number 6")
-   ($mod+7 . "workspace number 7")
-   ($mod+8 . "workspace number 8")
-   ($mod+9 . "workspace number 9")
-   ($mod+0 . "workspace number 10")
-   ($mod+Shift+1 . "move container to workspace number 1")
-   ($mod+Shift+2 . "move container to workspace number 2")
-   ($mod+Shift+3 . "move container to workspace number 3")
-   ($mod+Shift+4 . "move container to workspace number 4")
-   ($mod+Shift+5 . "move container to workspace number 5")
-   ($mod+Shift+6 . "move container to workspace number 6")
-   ($mod+Shift+7 . "move container to workspace number 7")
-   ($mod+Shift+8 . "move container to workspace number 8")
-   ($mod+Shift+9 . "move container to workspace number 9")
-   ($mod+Shift+0 . "move container to workspace number 10")
-   ($mod+q . "splith")
-   ($mod+w . "splitv")
-   ($mod+s . "layout stacking")
-   ($mod+t . "layout tabbed")
-   ($mod+e . "layout toggle split")
-   ($mod+n . "fullscreen")
-   ($mod+Shift+space . "floating toggle")
-   ($mod+space . "focus mode_toggle")
-   ($mod+p . "focus parent")
-   ($mod+o . "focus child")
-   ($mod+Shift+minus . "move scratchpad")
-   ($mod+Mod1+return . "scratchpad show")
-   ($mod+r . "mode \"resize\"")
+ `(
+   <<user-sway-keybinds>>
+   <<media-keys-bindings>>
+   <<sway-default-keys>>
+   )
+ )
+#+END_SRC
+
+*** Default Window Management Keybindings
+#+NAME: user-sway-keybinds
+#+BEGIN_SRC scheme
+($mod+shift+return . "exec emacsclient -c")
+($mod+g . "exec bash /home/light/.qolscripts/lsqol.sh")
+($mod+Shift+d . "exec /home/light/.qolscripts/emacs_dired.sh")
+($mod+Mod1+$left . "resize shrink width 50px")
+($mod+Mod1+$down . "resize grow height 50px")
+($mod+Mod1+$up . "resize shrink height 50px")
+($mod+Mod1+$right . "resize grow width 50px")
+(Mod1+Tab . "exec /home/light/.qolscripts/switchwindow.s")
+($mod+u . "exec rofi -i -show drun -show-icons")
+($mod+semicolon . "workspace prev")
+($mod+slash . "exec /home/light/.scripts/sway_workspace_change.sh i")
+($mod+Next . "exec /home/light/.scripts/sway_workspace_change.sh i")
+($mod+apostrophe . "workspace next")
+($mod+period . "exec /home/light/.scripts/sway_workspace_change.sh d")
+($mod+Prior . "exec /home/light/.scripts/sway_workspace_change.sh d")
+($mod+Tab . "workspace back_and_forth")
+($mod+Shift+semicolon . "move container to workspace prev")
+($mod+Shift+slash . "exec /home/light/.scripts/sway_workspace_move.sh i")
+($mod+Shift+apostrophe . "move container to workspace next")
+($mod+Shift+period . "exec /home/light/.scripts/sway_workspace_move.sh d")
+($mod+Shift+Tab . "move container to workspace back_and_forth")
+($mod+f . "exec firefox")
+#+END_SRC
+
+*** Media Keys Keybinds
+#+NAME: media-keys-bindings
+#+BEGIN_SRC scheme
    (XF86AudioRaiseVolume . "exec --no-startup-id bash ~/.scripts/volctrl i")
    (XF86AudioLowerVolume . "exec --no-startup-id bash ~/.scripts/volctrl d")
    (XF86AudioMute . "exec --no-startup-id bash ~/.scripts/volctrl p")
    (XF86AudioMicMute . "exec --no-startup-id pactl set-source-mute 0 toggle")
    (XF86MonBrightnessUp . "exec brightnessctl set 5%+")
    (XF86MonBrightnessDown . "exec brightnessctl set 5%-")
-   )
- )
 #+END_SRC
+
+*** Default Sway Keybindings
+#+NAME: sway-default-keys
+#+BEGIN_SRC scheme
+($mod+Return . "exec $term")
+($mod+Shift+q . "kill")
+($mod+d . "exec $menu")
+($mod+Shift+c . "reload")
+($mod+Shift+e
+ . ,#~(string-append
+       "exec " #$sway "/bin/swaynag -t warning -m \\\n    "
+       "'You pressed the exit shortcut.  Do you really want to exit sway?"
+       " This will end your Wayland session.' \\\n    "
+       "-B 'Yes, exit sway' \\\n    '"
+       #$sway "/bin/swaymsg exit'"))
+($mod+$left . "focus left")
+($mod+$down . "focus down")
+($mod+$up . "focus up")
+($mod+$right . "focus right")
+($mod+Left . "focus left")
+($mod+Down . "focus down")
+($mod+Up . "focus up")
+($mod+Right . "focus right")
+($mod+Shift+$left . "move left")
+($mod+Shift+$down . "move down")
+($mod+Shift+$up . "move up")
+($mod+Shift+$right . "move right")
+($mod+Shift+Left . "move left")
+($mod+Shift+Down . "move down")
+($mod+Shift+Up . "move up")
+($mod+Shift+Right . "move right")
+($mod+1 . "workspace number 1")
+($mod+2 . "workspace number 2")
+($mod+3 . "workspace number 3")
+($mod+4 . "workspace number 4")
+($mod+5 . "workspace number 5")
+($mod+6 . "workspace number 6")
+($mod+7 . "workspace number 7")
+($mod+8 . "workspace number 8")
+($mod+9 . "workspace number 9")
+($mod+0 . "workspace number 10")
+($mod+Shift+1 . "move container to workspace number 1")
+($mod+Shift+2 . "move container to workspace number 2")
+($mod+Shift+3 . "move container to workspace number 3")
+($mod+Shift+4 . "move container to workspace number 4")
+($mod+Shift+5 . "move container to workspace number 5")
+($mod+Shift+6 . "move container to workspace number 6")
+($mod+Shift+7 . "move container to workspace number 7")
+($mod+Shift+8 . "move container to workspace number 8")
+($mod+Shift+9 . "move container to workspace number 9")
+($mod+Shift+0 . "move container to workspace number 10")
+($mod+q . "splith") ;; user modified 
+($mod+w . "splitv") ;; user modified
+($mod+s . "layout stacking")
+($mod+t . "layout tabbed")
+($mod+e . "layout toggle split")
+($mod+n . "fullscreen") ;; user modified
+($mod+Shift+space . "floating toggle")
+($mod+space . "focus mode_toggle")
+($mod+p . "focus parent") ;; user modified
+($mod+o . "focus child") ;; user modified
+($mod+Shift+minus . "move scratchpad")
+($mod+Mod1+return . "scratchpad show") ;; user modified
+($mod+r . "mode \"resize\"")
+#+END_SRC
+
 ** Bar
 #+NAME: sway-bar
 #+BEGIN_SRC scheme
@@ -1016,11 +1084,11 @@ In this section, I will configure sway using guile scheme
      ;; 300: lock screen.
      "timeout 300 '" #$swaylock "/bin/swaylock "
      "--indicator-radius 75 \\\n    "
-     "-i " #$sway
-     "/share/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png \\\n    "
+     "-i "
+     "~/.config/sway/wall \\\n    "
      "-f -c 000000' \\\n    "
      ;; 600: lock + screen off.
-     "timeout 600 '" #$sway "/bin/swaymsg \"output * power off\"' \\\n    "
+;;     "timeout 600 '" #$sway "/bin/swaymsg \"output * power off\"' \\\n    "
      ;; 900: Sleep
      ;;    "timeout 900 '" #$sway "/bin/swaymsg \"output * power off\"' \\\n    "
      ;; "timeout 900 '" #$(file-append elogind "/bin/loginctl") " suspend' \\\n    "
@@ -1031,6 +1099,7 @@ In this section, I will configure sway using guile scheme
   
   "~/.qolscripts/emacs-daemon.sh"
   "mako"
+  "transmission-daemon"
   ))
 #+END_SRC
 
@@ -1050,5 +1119,6 @@ In this section, I will configure sway using guile scheme
   "smart_borders on"
   "smart_gaps on"
   "seat seat0 xcursor_theme Bibata-Original-Classic 22"
+  "floating_modifier $mod normal"
   )
 #+END_SRC
