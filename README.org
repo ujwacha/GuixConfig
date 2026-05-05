@@ -1,6 +1,5 @@
 #+TITLE: My Full Guix Config
 #+Author: Acharya U
-#+PROPERTY:
 
 * Introduction
 This document will contain literate config of literally all my guix config, which will be tangled within ~$HOME/.config/guix~ Direcories
@@ -8,6 +7,8 @@ This document will contain literate config of literally all my guix config, whic
 * Channel Config
 the added channels are:
 - Nonguix
+- Personal
+- guix-science  
 
   #+BEGIN_SRC emacs-lisp :tangle ./channels.scm
 (cons* (channel
@@ -19,6 +20,19 @@ the added channels are:
           "897c1a470da759236cc11798f4e0a5f7d4d59fbc"
           (openpgp-fingerprint
            "2A39 3FFF 68F4 EF7A 3D29  12AF 6F51 20A0 22FB B2D5"))))
+       (channel
+        (name 'guix-science)
+        (url "https://codeberg.org/guix-science/guix-science.git")
+        (branch "master")
+        (introduction
+         (make-channel-introduction
+          "b1fe5aaff3ab48e798a4cce02f0212bc91f423dc"
+          (openpgp-fingerprint
+           "CA4F 8CF4 37D7 478F DA05  5FD4 4213 7701 1A37 8446"))))
+       (channel
+	(name 'personal)
+	(url "https://github.com/ujwacha/GuixChannel.git")
+	(branch "main"))
        %default-channels)
   #+END_SRC
 
@@ -29,6 +43,7 @@ Firstly import all the things required modules, this part is a bit ugly, i'll ma
 #+BEGIN_SRC scheme :tangle ./sys.scm
 (use-modules (gnu) 
 	     (gnu system nss)
+	     (gnu system accounts)
 	     (gnu packages ncurses)
 	     (nongnu packages linux)
 	     (nongnu packages firmware)
@@ -36,20 +51,55 @@ Firstly import all the things required modules, this part is a bit ugly, i'll ma
 	     (nongnu packages video))
 
 
-(use-package-modules audio video nfs certs shells ssh linux bash emacs
+(use-package-modules audio
+		     video
+		     nfs
+		     certs
+		     shells
+		     ssh
+		     linux
+		     bash
+		     emacs
 		     gnome
 		     gnome-xyz
-		     emacs
 		     emacs-xyz
-                     networking wm fonts libusb cups freedesktop
+                     networking
+		     wm
+		     containers
+		     fonts
+		     libusb
+		     cups
+		     databases
+		     freedesktop
 		     file-systems
-                     version-control package-management vim wm)
+                     version-control
+		     package-management
+		     vim
+		     virtualization
+		     docker
+		     wm)
 
-(use-service-modules dbus desktop ssh cups pm authentication xorg
-		     databases sound web virtualization)
+(use-service-modules dbus
+		     desktop
+		     ssh
+		     cups
+		     pm
+		     authentication
+		     xorg
+		     containers
+		     databases
+		     sound
+		     web
+		     virtualization
+		     docker
+		     networking)
 
-(use-package-modules bootloaders  ratpoison suckless wm
-		     glib xorg)
+(use-package-modules bootloaders
+		     ratpoison
+		     suckless
+		     wm
+		     glib
+		     xorg)
 #+END_SRC
 
 ** Operating system definition
@@ -176,12 +226,13 @@ this is how we add filesystems
 ** Users and Groups
 #+NAME: users
 #+BEGIN_SRC scheme :noweb yes
-(groups (cons* (user-group (name "libvirt"))
-               ;; (user-group (name "kvm"))
+(groups (cons* ;; (user-group (name "libvirt"))
+	       ;; (user-group (name "cgroup"))
                %base-groups))
 
 (users (append (list
 		<<user-light>>
+		<<user-studyonly>>
 		)
 	       %base-user-accounts))
 #+END_SRC
@@ -197,9 +248,20 @@ This is my main user
  (supplementary-groups '("wheel" "netdev"
 			 "audio" "video"
 			 "dialout" "libvirt"
-			 "kvm")))
+			 "kvm" "cgroup"
+			 "docker")))
 #+END_SRC
-
+*** User Studyonly
+#+NAME: user-studyonly
+#+BEGIN_SRC scheme
+(user-account
+ (name "study")
+ (comment "Study User")
+ (group "users")
+ (supplementary-groups '("wheel" "netdev"
+			 "audio" "video"
+			 "dialout")))
+#+END_SRC
 ** Packages
 In the main system, there's not going to be a bunch of packages so we'll just put them in a single code block, I know It's kinda ugly, but that's the best we can do
 
@@ -226,6 +288,10 @@ In the main system, there's not going to be a bunch of packages so we'll just pu
 		   swaylock
 		   swayidle
 		   sway
+		   xdg-dbus-proxy
+		   xdg-desktop-portal
+		   xdg-desktop-portal-gtk
+		   xdg-desktop-portal-wlr
 		   mako
 		   niri
 		   gnome-shell-extension-vitals
@@ -233,7 +299,12 @@ In the main system, there's not going to be a bunch of packages so we'll just pu
 		   gnome-shell-extension-just-perfection
 		   gnome-shell-extension-paperwm
 		   gnome-shell-extension-appindicator
+		   distrobox
+		   docker
+		   qemu
+		   virt-manager
 		   tlp
+		   podman
 		   ;;power-profiles-daemon
 		   )
 		  %base-packages))
@@ -244,16 +315,17 @@ In the main system, there's not going to be a bunch of packages so we'll just pu
 #+BEGIN_SRC scheme :noweb yes
 (services
  (append (list
-	  
 	  <<system-openssh-service>>
 	  <<system-cups-service>>
 	  <<system-tlp-service>>
+	  <<system-thermald-service>>
 	  <<system-sql-service>>
 	  <<system-bluetooth-service>>
 	  <<system-screen-locker>>
 	  <<system-libvirt>>
 	  <<system-fwupd>>
-	  
+	  <<system-podman>>
+	  <<system-docker>>
 	  )
 	 
 	 <<modified-system-desktop-services>>
@@ -271,6 +343,7 @@ This is for printing stuff, to connect to printers basically
 #+NAME: system-cups-service
 #+BEGIN_SRC scheme
 (service gnome-desktop-service-type)
+(service cups-service-type)
 #+END_SRC
 
 *** TLP
@@ -278,34 +351,34 @@ TLP manages Power that goes into my laptop
 #+NAME: system-tlp-service
 #+BEGIN_SRC scheme
 (service tlp-service-type
-	 (tlp-configuration
-
-
-	  (tlp-enable? #t)
-
-	  (tlp-default-mode "AC")
-
-	  (start-charge-thresh-bat0 74)
-	  (stop-charge-thresh-bat0 84)
-	  
-
-	  (cpu-scaling-governor-on-ac '("performance"))
-	  (cpu-scaling-governor-on-bat '("powersave"))
-
-	  (cpu-energy-perf-policy-on-ac "performance")
-	  (cpu-energy-perf-policy-on-bat "power")
-	  
-
-	  (cpu-boost-on-ac? #t)
-	  (cpu-boost-on-bat? #f)
-	  
-	  (sched-powersave-on-bat? #t)))
-
+  (tlp-configuration
+    (tlp-enable? #t)
+    (tlp-default-mode "AC")
+    (start-charge-thresh-bat0 84)
+    (stop-charge-thresh-bat0 94)
+    
+    (cpu-scaling-governor-on-ac '("performance"))
+    (cpu-scaling-governor-on-bat '("powersave"))
+    (cpu-energy-perf-policy-on-ac "performance")
+    (cpu-energy-perf-policy-on-bat "power")
+    
+    (cpu-scaling-max-freq-on-ac 4200000)
+    (cpu-scaling-max-freq-on-bat 900000)
+    
+    (cpu-boost-on-ac? #t)
+    (cpu-boost-on-bat? #f)
+  ))
 
 (extra-special-file
  "/etc/tlp.d/50-platform-profile.conf"
  (plain-file "50-platform-profile.conf"
-	     "PLATFORM_PROFILE_ON_AC=performance\nPLATFORM_PROFILE_ON_BAT=low-power\n"))
+             "PLATFORM_PROFILE_ON_AC=performance\nPLATFORM_PROFILE_ON_BAT=low-power\nCPU_HWP_DYN_BOOST_ON_AC=1\nCPU_HWP_DYN_BOOST_ON_BAT=0\n"))
+#+END_SRC
+
+*** ThermalD
+#+NAME: system-thermald-service
+#+BEGIN_SRC scheme
+(service thermald-service-type)
 #+END_SRC
 
 *** Bluetooth
@@ -319,7 +392,9 @@ TLP manages Power that goes into my laptop
 *** SQL
 #+NAME: system-sql-service
 #+BEGIN_SRC scheme
-(service mysql-service-type)
+(service postgresql-service-type
+         (postgresql-configuration
+          (postgresql postgresql)))
 #+END_SRC
 *** System Screen Locker enable for Sway
 #+NAME: system-screen-locker
@@ -330,7 +405,7 @@ TLP manages Power that goes into my laptop
 	  (program (file-append swaylock "/bin/swaylock"))))
 #+END_SRC
 *** Libvirt
-#+NAME: libvirt-services
+#+NAME: system-libvirt
 #+BEGIN_SRC scheme
 (service libvirt-service-type)
 (service virtlog-service-type)
@@ -342,6 +417,25 @@ TLP manages Power that goes into my laptop
                 (list fwupd-nonfree))
 (simple-service 'polkit-fwupd polkit-service-type 
                 (list fwupd-nonfree))
+#+END_SRC
+
+*** Podman
+#+NAME: system-podman
+#+BEGIN_SRC scheme
+(service iptables-service-type)
+
+(service rootless-podman-service-type
+         (rootless-podman-configuration
+          (subuids (list (subid-range (name "light"))))
+          (subgids (list (subid-range (name "light"))))))
+
+#+END_SRC
+
+*** Docker
+#+NAME: system-docker
+#+BEGIN_SRC scheme
+(service containerd-service-type)
+(service docker-service-type)
 #+END_SRC
 *** Modified Desktop Services
 #+NAME: modified-system-desktop-services
@@ -356,18 +450,18 @@ TLP manages Power that goes into my laptop
 		      (append
 		       (list
 			"https://bordeaux-singapore-mirror.cbaines.net"
-			"https://mirror.sjtu.edu.cn/guix" 
+			"https://guix.bordeaux.inria.fr"
 			"https://substitutes.nonguix.org"
-			;; "https://bordeaux.guix.gnu.org"
 			)
 		       %default-substitute-urls
-		       ;;'() ;; i have the german server
+
 		       ))
 		     (authorized-keys
 		      (append
-		       (list (local-file "./signing-key.pub"))
-		       %default-authorized-guix-keys))
-		     )))
+		       (list (local-file "./signing-key.pub")
+			     (local-file "./guix-sci-key.pub"))
+		       %default-authorized-guix-keys)))))
+
 #+END_SRC
 
 * Home Config
@@ -385,31 +479,47 @@ TLP manages Power that goes into my laptop
 	     (gnu home services)
 	     (gnu services databases)
              (gnu home services shepherd)
-	     
 	     (my services i3blocks)
+	     
 	     (gnu packages wm)
+	     (gnu packages cpp)
+	     (gnu packages gdb)
+	     (gnu packages embedded)
 	     (gnu packages databases)
+	     (gnu packages python-build)
 	     (gnu packages pulseaudio)
+	     (gnu packages electronics)
 	     (gnu packages video)
+	     (gnu packages engineering)
+	     (gnu packages graphics)
 	     (gnu packages package-management)
 	     (gnu packages bittorrent)
 	     (gnu packages gnome)
+	     (gnu packages antivirus)
+	     (gnu packages libreoffice)
 	     (gnu packages image)
+	     (gnu packages emulators)
+	     (gnu packages chromium)
 	     (gnu packages gnome-xyz)
 	     (gnu packages xorg)
 	     (gnu packages shellutils)
 	     (gnu packages vim)
+	     (gnu packages lisp)
+	     (gnu packages text-editors)
 	     (gnu packages terminals)
 	     (gnu packages maths)
+	     (gnu packages compression)
 	     (gnu packages algebra)
 	     (gnu packages linux)
 	     (gnu packages freedesktop)
+	     (gnu packages containers)
 	     (gnu packages password-utils)
 	     (gnu packages pkg-config)
 	     (gnu packages autotools) 
 	     (gnu packages build-tools)
 	     (gnu packages cmake)
 	     (gnu packages base)
+	     (gnu packages gtk)
 	     (gnu packages commencement)
 	     (gnu packages llvm)
 	     (gnu packages python)
@@ -423,7 +533,9 @@ TLP manages Power that goes into my laptop
 	     (gnu packages python-science)
 	     (gnu packages duckdb)
 	     (gnu packages web)
+	     (gnu packages docker)
 	     (gnu packages tex)
+	     (gnu packages file-systems)
 	     (gnu packages emacs)
 	     (gnu packages emacs-xyz)
 	     (gnu packages fonts)
@@ -433,7 +545,9 @@ TLP manages Power that goes into my laptop
 	     (nongnu packages fonts)
 	     (nongnu packages mozilla)
 	     (nongnu packages chrome)
-	     (nonguix multiarch-container))
+	     (nonguix multiarch-container)
+	     (guix-science packages electronics)
+	     )
 #+END_SRC
 
 ** Package Definitions
@@ -443,7 +557,6 @@ TLP manages Power that goes into my laptop
 (define sql-packages-list
   (list sqlite
 	postgresql
-	mariadb
 	sqlitebrowser
 	pgloader
 	python-psycopg2
@@ -472,6 +585,8 @@ TLP manages Power that goes into my laptop
 	emacs-guix
 	emacs-gcmh
 	emacs-ivy
+	emacs-sly
+	emacs-sly-asdf
 	emacs-swiper
 	emacs-php-mode
 	emacs-doom-modeline
@@ -486,6 +601,7 @@ TLP manages Power that goes into my laptop
 	emacs-company
 	emacs-yasnippet
 	emacs-vterm
+	emacs-vhdl-ext
 	emacs-multi-vterm
 	emacs-beacon
 	emacs-neotree
@@ -544,13 +660,25 @@ TLP manages Power that goes into my laptop
 	automake
 	cmake
 	gcc-toolchain
+	(make-arm-none-eabi-toolchain-12.3.rel1)
+	(make-gdb-arm-none-eabi)
+	openocd
 	clang-toolchain
+	coreutils
+	glibc
+	gnu-make
+	c2ffi
+	bear
+	gdb
 	python
 	python-lsp-server
 	rust
 	(list rust "cargo")
 	(list rust "rust-src")
 	(list rust "tools")
+	sbcl
+	vhdl-ls
+	python-pip
 	rust-analyzer))
 #+END_SRC
 
@@ -589,7 +717,15 @@ TLP manages Power that goes into my laptop
 	gnome-tweaks
 	vim
 	fzf
-	firefox-esr
+	zip
+	unzip
+	ghdl-llvm
+	firefox
+	blender
+	freecad
+	fastfetch
+	clamav
+	;;ungoogled-chromium
 	google-chrome-stable
 	thinkfan
 	octave
@@ -600,18 +736,83 @@ TLP manages Power that goes into my laptop
 	gnome-shell-extensions
 	pavucontrol
 	pamixer
+	libreoffice
 	alsa-utils
 	libnotify
 	gnuplot
 	foot
 	grim
 	slurp
+	yt-dlp
+	eden
 	direnv
 	kitty
+	lem
 	kanata
 	keepassxc
+	gtkwave
+	dragon-drop
 	bibata-cursor-theme
 	xcursor-themes))
+#+END_SRC
+
+*** Virtualization and Containers
+#+NAME: virt-programs
+#+BEGIN_SRC scheme
+(define virt-packages
+  (list crun
+	xhost
+	fuse-overlayfs))
+#+END_SRC
+*** Specification packages
+These must be put on in the future
+#+NAME: home-spec-packages
+#+BEGIN_SRC scheme
+(define spec-packages 
+  (specifications->packages (list "okular"
+                                  "img2pdf"
+                                  "cmatrix"
+                                  "blueman"
+                                  "bluez"
+                                  "zathura-pdf-mupdf"
+                                  "zathura-pdf-poppler"
+                                  "zathura"
+                                  "kigo"
+                                  "osqp"
+                                  "wf-recorder"
+                                  "ispell"
+                                  "sxiv"
+                                  "emacs-gnuplot"
+                                  "alacritty"
+                                  "ani-cli"
+                                  "wofi"
+                                  "rust:cargo"
+				  "kdenlive"
+                                  "slurp"
+                                  "grim"
+				  "flex"	
+				  "bison"
+				  "fuse"
+				  "elfutils"
+				  "openssl"
+				  "pkg-config"
+                                  "kicad"
+                                  "mpv"
+                                  "nwg-launchers"
+                                  "alsa-utils"
+                                  "pamixer"
+                                  "libnotify"
+                                  "fyi"
+                                  "pavucontrol"
+                                  "rofi"
+                                  "tree"
+                                  "quassel"
+                                  "irssi"
+				  "steam"
+                                  "file"
+                                  "guix-backgrounds"
+                                  "lm-sensors"
+                                  "ranger")))
 #+END_SRC
 
 ** Home Services
@@ -626,21 +827,33 @@ TLP manages Power that goes into my laptop
           (aliases '(("ls" . "ls --color=auto")
                      ("grep" . "grep --color=auto")
                      ("ll" . "ls -alF")
-                     ("gcon" . "cd ~/.config/guix/")))
+                     ("gcon" . "cd ~/.config/guix/")
+		     ("ros" . "distrobox enter ros-jazzy")))
           (bashrc (list
-         (plain-file "bashrc-integrated"
-                     "
+		   (plain-file "bashrc-integrated"
+			       "
 # 1. External Hooks
 eval \"$(fzf --bash)\"
 eval \"$(direnv hook bash)\"
 
+#export DBX_CONTAINER_MANAGER=\"docker\"
+
 # 2. Refined Guix Indicator Function
 get_guix_indicator() {
+    # Direct guix shell environment
     if [ -n \"$GUIX_ENVIRONMENT\" ]; then
         echo -ne \"\\001\\033[01;35m\\002[Guix]\\001\\033[00m\\002\"
-    elif [ -n \"$DIRENV_DIR\" ]; then
-        # Only show if direnv has loaded a Guix store-based profile
-        if [[ \"$PKG_CONFIG_PATH\" == *\"/gnu/store/\"*\"-profile/\"* ]]; then
+        return
+    fi
+    
+    # Check for direnv-loaded guix environment
+    if [ -n \"$DIRENV_DIR\" ]; then
+        # Check multiple possible indicators
+        if [[ \"$PATH\" == *\"/gnu/store/\"* ]] || \\
+           [[ \"$GUIX_PYTHONPATH\" == *\"/gnu/store/\"* ]] || \\
+           [[ \"$PKG_CONFIG_PATH\" == *\"/gnu/store/\"*\"-profile/\"* ]] || \\
+           [[ \"$CPLUS_INCLUDE_PATH\" == *\"/gnu/store/\"* ]] || \\
+           [[ -n \"$GUIX_LOCPATH\" ]]; then
             echo -ne \"\\001\\033[01;35m\\002[Guix]\\001\\033[00m\\002\"
         fi
     fi
@@ -648,7 +861,8 @@ get_guix_indicator() {
 
 # 3. Final PS1
 export PS1='\\001\\033[0m\\002┌─\\001\\033[01;34m\\002[\\u@\\h]\\001\\033[00m\\002$(get_guix_indicator) - \\001\\033[01;33m\\002[\\w]\\001\\033[00m\\002 - \\001\\033[01;32m\\002[\\!]\\001\\033[00m\\002\\n└─\\001\\033[01;31m\\002[\\$]\\001\\033[00m\\002 '
-")))))
+")
+		   ))))
 #+END_SRC
 
 *** Files Service
@@ -657,10 +871,8 @@ export PS1='\\001\\033[0m\\002┌─\\001\\033[01;34m\\002[\\u@\\h]\\001\\033[00
 (service home-files-service-type
 	 (list `(".inputrc"
 		 ,(plain-file "inputrc"
-			      "\"\\t\": menu-complete\n\"\\e[Z\": menu-complete-backward\nset colored-stats on\nset menu-complete-display-prefix on\n\n\"\\e[A\": history-search-backward\n\"\\e[B\": history-search-forward\n"))
-	       `(".config/autostart/myscript.desktop"
-		 ,(plain-file "myscript.desktop"
-			      "[Desktop Entry]\nType=Application\nName=My Startup Script\nExec=\"bash /home/light/.qolscripts/emacs-daemon.sh\"\nNoDisplay=false\nX-GNOME-Autostart-enabled=true\n"))))
+			      "\"\\t\": menu-complete\n\"\\e[Z\": menu-complete-backward\nset colored-stats on\nset menu-complete-display-prefix on\n\n\"\\e[A\": history-search-backward\n\"\\e[B\": history-search-forward\n"
+			      ))))
 #+END_SRC
 
 *** Environment Variables Service
@@ -775,17 +987,22 @@ this is the main home environment definition, make sure that it does not have a 
 
 <<fun-programs>>
 
+<<virt-programs>>
+<<home-spec-packages>>
+
 <<sway-unity-theme>>
 
 (home-environment
  (packages
   (append
    sql-packages-list
-   (list texlive-scheme-full)
+   (list texlive-scheme-basic)
    my-emacs-package-list
    useful-fonts
    compiler-toolchain
    fun-programs
+   virt-packages
+   spec-packages
    ))
 
  (services
@@ -905,11 +1122,18 @@ swaymsg -t get_outputs
  (list (sway-output
         (identifier '*)
         (background "~/.config/sway/wall"))
+       
        (sway-output
-	 (identifier "eDP-1")
-	 (position (point (x 0)
-			  (y 0)))
-	 (resolution "1920x1080"))))
+	(identifier "HDMI-A-1")
+	(position (point (x 1920)
+			 (y 1080)))
+	(resolution "1920x1080@60Hz"))
+       
+       (sway-output
+	(identifier "eDP-1")
+	(position (point (x 0)
+			 (y 0)))
+	(resolution "1920x1080@60Hz"))))
 #+END_SRC
 ** Gestures
 #+NAME: sway-gestures
@@ -941,7 +1165,8 @@ swaymsg -t get_outputs
 ($mod+Mod1+$down . "resize grow height 50px")
 ($mod+Mod1+$up . "resize shrink height 50px")
 ($mod+Mod1+$right . "resize grow width 50px")
-(Mod1+Tab . "exec /home/light/.qolscripts/switchwindow.s")
+;;(Mod1+Tab . "exec /home/light/.qolscripts/switchwindow.sh")
+($alt+Tab . "exec rofi -i -show window -show-icons")
 ($mod+u . "exec rofi -i -show drun -show-icons")
 ($mod+semicolon . "workspace prev")
 ($mod+slash . "exec /home/light/.scripts/sway_workspace_change.sh i")
@@ -956,6 +1181,9 @@ swaymsg -t get_outputs
 ($mod+Shift+period . "exec /home/light/.scripts/sway_workspace_move.sh d")
 ($mod+Shift+Tab . "move container to workspace back_and_forth")
 ($mod+f . "exec firefox")
+($mod+Mod1+q . "exec ~/.scripts/kill_focused_window.sh")
+($mod+Shift+s . "sticky toggle")
+(Print . "exec grim -g \"$(slurp -d)\" - | wl-copy")
 #+END_SRC
 
 *** Media Keys Keybinds
@@ -999,6 +1227,10 @@ swaymsg -t get_outputs
 ($mod+Shift+Down . "move down")
 ($mod+Shift+Up . "move up")
 ($mod+Shift+Right . "move right")
+($mod+Mod1+Shift+$right . "move workspace to output right")
+($mod+Mod1+Shift+$left . "move workspace to output left")
+($mod+Mod1+Shift+$down . "move workspace to output down")
+($mod+Mod1+Shift+$up . "move workspace to output up")
 ($mod+1 . "workspace number 1")
 ($mod+2 . "workspace number 2")
 ($mod+3 . "workspace number 3")
@@ -1038,17 +1270,17 @@ swaymsg -t get_outputs
 #+NAME: sway-bar
 #+BEGIN_SRC scheme
 (bar (sway-bar
-       (position 'top)
-       (hidden-state 'show)
+       (position 'bottom)
+       (hidden-state 'hide)
        (binding-mode-indicator #t)
        (status-command "i3blocks")
        (colors (sway-color
-               (background "#2C2C2C")
-               (statusline "#DCDCDC")
-               (focused-workspace unity-orange)
-               (active-workspace  unity-neutral)
-               (inactive-workspace unity-dark)
-               (urgent-workspace  unity-urgent)))))
+		(background "#2C2C2C")
+		(statusline "#DCDCDC")
+		(focused-workspace unity-orange)
+		(active-workspace  unity-neutral)
+		(inactive-workspace unity-dark)
+		(urgent-workspace  unity-urgent)))))
 #+END_SRC
 
 ** Colors
@@ -1100,6 +1332,7 @@ swaymsg -t get_outputs
   "~/.qolscripts/emacs-daemon.sh"
   "mako"
   "transmission-daemon"
+  "blueman-applet"
   ))
 #+END_SRC
 
@@ -1107,6 +1340,7 @@ swaymsg -t get_outputs
 #+NAME: window-rules-extra
 #+BEGIN_SRC scheme
 `("default_border pixel 2"
+  "font pango:monospace 8"
   "assign [class=\"qBittorrent\"] 9"
   "assign [class=\"discord\"] 10"
   "assign [class=\"steam\"] 9"

@@ -1,5 +1,6 @@
 (use-modules (gnu) 
 	     (gnu system nss)
+	     (gnu system accounts)
 	     (gnu packages ncurses)
 	     (nongnu packages linux)
 	     (nongnu packages firmware)
@@ -7,20 +8,55 @@
 	     (nongnu packages video))
 
 
-(use-package-modules audio video nfs certs shells ssh linux bash emacs
+(use-package-modules audio
+		     video
+		     nfs
+		     certs
+		     shells
+		     ssh
+		     linux
+		     bash
+		     emacs
 		     gnome
 		     gnome-xyz
-		     emacs
 		     emacs-xyz
-                     networking wm fonts libusb cups freedesktop
+                     networking
+		     wm
+		     containers
+		     fonts
+		     libusb
+		     cups
+		     databases
+		     freedesktop
 		     file-systems
-                     version-control package-management vim wm)
+                     version-control
+		     package-management
+		     vim
+		     virtualization
+		     docker
+		     wm)
 
-(use-service-modules dbus desktop ssh cups pm authentication xorg
-		     databases sound web virtualization)
+(use-service-modules dbus
+		     desktop
+		     ssh
+		     cups
+		     pm
+		     authentication
+		     xorg
+		     containers
+		     databases
+		     sound
+		     web
+		     virtualization
+		     docker
+		     networking)
 
-(use-package-modules bootloaders  ratpoison suckless wm
-		     glib xorg)
+(use-package-modules bootloaders
+		     ratpoison
+		     suckless
+		     wm
+		     glib
+		     xorg)
 
 (operating-system
  (host-name "vogel")
@@ -81,8 +117,8 @@
     (swap-space (target 
  		(uuid "607f7910-12e6-404f-8664-70fa0c0f8776")))))
 
- (groups (cons* (user-group (name "libvirt"))
-                ;; (user-group (name "kvm"))
+ (groups (cons* ;; (user-group (name "libvirt"))
+ 	       ;; (user-group (name "cgroup"))
                 %base-groups))
  
  (users (append (list
@@ -93,7 +129,15 @@
  		 (supplementary-groups '("wheel" "netdev"
  					 "audio" "video"
  					 "dialout" "libvirt"
- 					 "kvm")))
+ 					 "kvm" "cgroup"
+ 					 "docker")))
+ 		(user-account
+ 		 (name "study")
+ 		 (comment "Study User")
+ 		 (group "users")
+ 		 (supplementary-groups '("wheel" "netdev"
+ 					 "audio" "video"
+ 					 "dialout")))
  		)
  	       %base-user-accounts))
 
@@ -118,6 +162,10 @@
  		   swaylock
  		   swayidle
  		   sway
+ 		   xdg-dbus-proxy
+ 		   xdg-desktop-portal
+ 		   xdg-desktop-portal-gtk
+ 		   xdg-desktop-portal-wlr
  		   mako
  		   niri
  		   gnome-shell-extension-vitals
@@ -125,46 +173,48 @@
  		   gnome-shell-extension-just-perfection
  		   gnome-shell-extension-paperwm
  		   gnome-shell-extension-appindicator
+ 		   distrobox
+ 		   docker
+ 		   qemu
+ 		   virt-manager
  		   tlp
+ 		   podman
  		   ;;power-profiles-daemon
  		   )
  		  %base-packages))
 
  (services
   (append (list
- 	  
  	  (service openssh-service-type)
  	  (service gnome-desktop-service-type)
+ 	  (service cups-service-type)
  	  (service tlp-service-type
- 	  	 (tlp-configuration
- 	  
- 	  
- 	  	  (tlp-enable? #t)
- 	  
- 	  	  (tlp-default-mode "AC")
- 	  
- 	  	  (start-charge-thresh-bat0 74)
- 	  	  (stop-charge-thresh-bat0 84)
- 	  	  
- 	  
- 	  	  (cpu-scaling-governor-on-ac '("performance"))
- 	  	  (cpu-scaling-governor-on-bat '("powersave"))
- 	  
- 	  	  (cpu-energy-perf-policy-on-ac "performance")
- 	  	  (cpu-energy-perf-policy-on-bat "power")
- 	  	  
- 	  
- 	  	  (cpu-boost-on-ac? #t)
- 	  	  (cpu-boost-on-bat? #f)
- 	  	  
- 	  	  (sched-powersave-on-bat? #t)))
- 	  
+ 	    (tlp-configuration
+ 	      (tlp-enable? #t)
+ 	      (tlp-default-mode "AC")
+ 	      (start-charge-thresh-bat0 84)
+ 	      (stop-charge-thresh-bat0 94)
+ 	      
+ 	      (cpu-scaling-governor-on-ac '("performance"))
+ 	      (cpu-scaling-governor-on-bat '("powersave"))
+ 	      (cpu-energy-perf-policy-on-ac "performance")
+ 	      (cpu-energy-perf-policy-on-bat "power")
+ 	      
+ 	      (cpu-scaling-max-freq-on-ac 4200000)
+ 	      (cpu-scaling-max-freq-on-bat 900000)
+ 	      
+ 	      (cpu-boost-on-ac? #t)
+ 	      (cpu-boost-on-bat? #f)
+ 	    ))
  	  
  	  (extra-special-file
  	   "/etc/tlp.d/50-platform-profile.conf"
  	   (plain-file "50-platform-profile.conf"
- 	  	     "PLATFORM_PROFILE_ON_AC=performance\nPLATFORM_PROFILE_ON_BAT=low-power\n"))
- 	  (service mysql-service-type)
+ 	               "PLATFORM_PROFILE_ON_AC=performance\nPLATFORM_PROFILE_ON_BAT=low-power\nCPU_HWP_DYN_BOOST_ON_AC=1\nCPU_HWP_DYN_BOOST_ON_BAT=0\n"))
+ 	  (service thermald-service-type)
+ 	  (service postgresql-service-type
+ 	           (postgresql-configuration
+ 	            (postgresql postgresql)))
  	  (service bluetooth-service-type
  	           (bluetooth-configuration
  	            (auto-enable? #t)))
@@ -172,12 +222,21 @@
  	  	 (screen-locker-configuration
  	  	  (name "swaylock")
  	  	  (program (file-append swaylock "/bin/swaylock"))))
- 	  
+ 	  (service libvirt-service-type)
+ 	  (service virtlog-service-type)
  	  (simple-service 'dbus-fwupd dbus-root-service-type 
  	                  (list fwupd-nonfree))
  	  (simple-service 'polkit-fwupd polkit-service-type 
  	                  (list fwupd-nonfree))
+ 	  (service iptables-service-type)
  	  
+ 	  (service rootless-podman-service-type
+ 	           (rootless-podman-configuration
+ 	            (subuids (list (subid-range (name "light"))))
+ 	            (subgids (list (subid-range (name "light"))))))
+ 	  
+ 	  (service containerd-service-type)
+ 	  (service docker-service-type)
  	  )
  	 
  	 (modify-services
@@ -190,18 +249,18 @@
  	 		      (append
  	 		       (list
  	 			"https://bordeaux-singapore-mirror.cbaines.net"
- 	 			"https://mirror.sjtu.edu.cn/guix" 
+ 	 			"https://guix.bordeaux.inria.fr"
  	 			"https://substitutes.nonguix.org"
- 	 			;; "https://bordeaux.guix.gnu.org"
  	 			)
  	 		       %default-substitute-urls
- 	 		       ;;'() ;; i have the german server
+ 	 
  	 		       ))
  	 		     (authorized-keys
  	 		      (append
- 	 		       (list (local-file "./signing-key.pub"))
- 	 		       %default-authorized-guix-keys))
- 	 		     )))
+ 	 		       (list (local-file "./signing-key.pub")
+ 	 			     (local-file "./guix-sci-key.pub"))
+ 	 		       %default-authorized-guix-keys)))))
+ 	 
  	 ))
  
  (name-service-switch %mdns-host-lookup-nss))

@@ -10,31 +10,47 @@
 	     (gnu home services)
 	     (gnu services databases)
              (gnu home services shepherd)
-	     
 	     (my services i3blocks)
+	     
 	     (gnu packages wm)
+	     (gnu packages cpp)
+	     (gnu packages gdb)
+	     (gnu packages embedded)
 	     (gnu packages databases)
+	     (gnu packages python-build)
 	     (gnu packages pulseaudio)
+	     (gnu packages electronics)
 	     (gnu packages video)
+	     (gnu packages engineering)
+	     (gnu packages graphics)
 	     (gnu packages package-management)
 	     (gnu packages bittorrent)
 	     (gnu packages gnome)
+	     (gnu packages antivirus)
+	     (gnu packages libreoffice)
 	     (gnu packages image)
+	     (gnu packages emulators)
+	     (gnu packages chromium)
 	     (gnu packages gnome-xyz)
 	     (gnu packages xorg)
 	     (gnu packages shellutils)
 	     (gnu packages vim)
+	     (gnu packages lisp)
+	     (gnu packages text-editors)
 	     (gnu packages terminals)
 	     (gnu packages maths)
+	     (gnu packages compression)
 	     (gnu packages algebra)
 	     (gnu packages linux)
 	     (gnu packages freedesktop)
+	     (gnu packages containers)
 	     (gnu packages password-utils)
 	     (gnu packages pkg-config)
 	     (gnu packages autotools) 
 	     (gnu packages build-tools)
 	     (gnu packages cmake)
 	     (gnu packages base)
+	     (gnu packages gtk)
 	     (gnu packages commencement)
 	     (gnu packages llvm)
 	     (gnu packages python)
@@ -48,7 +64,9 @@
 	     (gnu packages python-science)
 	     (gnu packages duckdb)
 	     (gnu packages web)
+	     (gnu packages docker)
 	     (gnu packages tex)
+	     (gnu packages file-systems)
 	     (gnu packages emacs)
 	     (gnu packages emacs-xyz)
 	     (gnu packages fonts)
@@ -58,7 +76,9 @@
 	     (nongnu packages fonts)
 	     (nongnu packages mozilla)
 	     (nongnu packages chrome)
-	     (nonguix multiarch-container))
+	     (nonguix multiarch-container)
+	     (guix-science packages electronics)
+	     )
 
 (define my-i3blocks-configlist
   '(
@@ -102,7 +122,6 @@
 (define sql-packages-list
   (list sqlite
 	postgresql
-	mariadb
 	sqlitebrowser
 	pgloader
 	python-psycopg2
@@ -127,6 +146,8 @@
 	emacs-guix
 	emacs-gcmh
 	emacs-ivy
+	emacs-sly
+	emacs-sly-asdf
 	emacs-swiper
 	emacs-php-mode
 	emacs-doom-modeline
@@ -141,6 +162,7 @@
 	emacs-company
 	emacs-yasnippet
 	emacs-vterm
+	emacs-vhdl-ext
 	emacs-multi-vterm
 	emacs-beacon
 	emacs-neotree
@@ -213,13 +235,25 @@
 	automake
 	cmake
 	gcc-toolchain
+	(make-arm-none-eabi-toolchain-12.3.rel1)
+	(make-gdb-arm-none-eabi)
+	openocd
 	clang-toolchain
+	coreutils
+	glibc
+	gnu-make
+	c2ffi
+	bear
+	gdb
 	python
 	python-lsp-server
 	rust
 	(list rust "cargo")
 	(list rust "rust-src")
 	(list rust "tools")
+	sbcl
+	vhdl-ls
+	python-pip
 	rust-analyzer))
 
 (define fun-programs
@@ -233,7 +267,15 @@
 	gnome-tweaks
 	vim
 	fzf
-	firefox-esr
+	zip
+	unzip
+	ghdl-llvm
+	firefox
+	blender
+	freecad
+	fastfetch
+	clamav
+	;;ungoogled-chromium
 	google-chrome-stable
 	thinkfan
 	octave
@@ -244,18 +286,74 @@
 	gnome-shell-extensions
 	pavucontrol
 	pamixer
+	libreoffice
 	alsa-utils
 	libnotify
 	gnuplot
 	foot
 	grim
 	slurp
+	yt-dlp
+	eden
 	direnv
 	kitty
+	lem
 	kanata
 	keepassxc
+	gtkwave
+	dragon-drop
 	bibata-cursor-theme
 	xcursor-themes))
+
+(define virt-packages
+  (list crun
+	xhost
+	fuse-overlayfs))
+(define spec-packages 
+  (specifications->packages (list "okular"
+                                  "img2pdf"
+                                  "cmatrix"
+                                  "blueman"
+                                  "bluez"
+                                  "zathura-pdf-mupdf"
+                                  "zathura-pdf-poppler"
+                                  "zathura"
+                                  "kigo"
+                                  "osqp"
+                                  "wf-recorder"
+                                  "ispell"
+                                  "sxiv"
+                                  "emacs-gnuplot"
+                                  "alacritty"
+                                  "ani-cli"
+                                  "wofi"
+                                  "rust:cargo"
+				  "kdenlive"
+                                  "slurp"
+                                  "grim"
+				  "flex"	
+				  "bison"
+				  "fuse"
+				  "elfutils"
+				  "openssl"
+				  "pkg-config"
+                                  "kicad"
+                                  "mpv"
+                                  "nwg-launchers"
+                                  "alsa-utils"
+                                  "pamixer"
+                                  "libnotify"
+                                  "fyi"
+                                  "pavucontrol"
+                                  "rofi"
+                                  "tree"
+                                  "quassel"
+                                  "irssi"
+				  "steam"
+                                  "file"
+                                  "guix-backgrounds"
+                                  "lm-sensors"
+                                  "ranger")))
 
 (define unity-orange
   (sway-border-color (border "#DD4814") (background "#DD4814") (text "#FFFFFF")))
@@ -273,11 +371,13 @@
  (packages
   (append
    sql-packages-list
-   (list texlive-scheme-full)
+   (list texlive-scheme-basic)
    my-emacs-package-list
    useful-fonts
    compiler-toolchain
    fun-programs
+   virt-packages
+   spec-packages
    ))
 
  (services
@@ -291,21 +391,33 @@
 	             (aliases '(("ls" . "ls --color=auto")
 	                        ("grep" . "grep --color=auto")
 	                        ("ll" . "ls -alF")
-	                        ("gcon" . "cd ~/.config/guix/")))
+	                        ("gcon" . "cd ~/.config/guix/")
+	   		     ("ros" . "distrobox enter ros-jazzy")))
 	             (bashrc (list
-	            (plain-file "bashrc-integrated"
-	                        "
+	   		   (plain-file "bashrc-integrated"
+	   			       "
 	   # 1. External Hooks
 	   eval \"$(fzf --bash)\"
 	   eval \"$(direnv hook bash)\"
 	   
+	   #export DBX_CONTAINER_MANAGER=\"docker\"
+	   
 	   # 2. Refined Guix Indicator Function
 	   get_guix_indicator() {
+	       # Direct guix shell environment
 	       if [ -n \"$GUIX_ENVIRONMENT\" ]; then
 	           echo -ne \"\\001\\033[01;35m\\002[Guix]\\001\\033[00m\\002\"
-	       elif [ -n \"$DIRENV_DIR\" ]; then
-	           # Only show if direnv has loaded a Guix store-based profile
-	           if [[ \"$PKG_CONFIG_PATH\" == *\"/gnu/store/\"*\"-profile/\"* ]]; then
+	           return
+	       fi
+	       
+	       # Check for direnv-loaded guix environment
+	       if [ -n \"$DIRENV_DIR\" ]; then
+	           # Check multiple possible indicators
+	           if [[ \"$PATH\" == *\"/gnu/store/\"* ]] || \\
+	              [[ \"$GUIX_PYTHONPATH\" == *\"/gnu/store/\"* ]] || \\
+	              [[ \"$PKG_CONFIG_PATH\" == *\"/gnu/store/\"*\"-profile/\"* ]] || \\
+	              [[ \"$CPLUS_INCLUDE_PATH\" == *\"/gnu/store/\"* ]] || \\
+	              [[ -n \"$GUIX_LOCPATH\" ]]; then
 	               echo -ne \"\\001\\033[01;35m\\002[Guix]\\001\\033[00m\\002\"
 	           fi
 	       fi
@@ -313,15 +425,14 @@
 	   
 	   # 3. Final PS1
 	   export PS1='\\001\\033[0m\\002┌─\\001\\033[01;34m\\002[\\u@\\h]\\001\\033[00m\\002$(get_guix_indicator) - \\001\\033[01;33m\\002[\\w]\\001\\033[00m\\002 - \\001\\033[01;32m\\002[\\!]\\001\\033[00m\\002\\n└─\\001\\033[01;31m\\002[\\$]\\001\\033[00m\\002 '
-	   ")))))
+	   ")
+	   		   ))))
 	   
 	   (service home-files-service-type
 	   	 (list `(".inputrc"
 	   		 ,(plain-file "inputrc"
-	   			      "\"\\t\": menu-complete\n\"\\e[Z\": menu-complete-backward\nset colored-stats on\nset menu-complete-display-prefix on\n\n\"\\e[A\": history-search-backward\n\"\\e[B\": history-search-forward\n"))
-	   	       `(".config/autostart/myscript.desktop"
-	   		 ,(plain-file "myscript.desktop"
-	   			      "[Desktop Entry]\nType=Application\nName=My Startup Script\nExec=\"bash /home/light/.qolscripts/emacs-daemon.sh\"\nNoDisplay=false\nX-GNOME-Autostart-enabled=true\n"))))
+	   			      "\"\\t\": menu-complete\n\"\\e[Z\": menu-complete-backward\nset colored-stats on\nset menu-complete-display-prefix on\n\n\"\\e[A\": history-search-backward\n\"\\e[B\": history-search-forward\n"
+	   			      ))))
 	   
 	   (simple-service 'my-environment-variables
 	   		home-environment-variables-service-type
@@ -377,11 +488,18 @@
 	   	    (list (sway-output
 	   	           (identifier '*)
 	   	           (background "~/.config/sway/wall"))
+	   	          
 	   	          (sway-output
-	   	   	 (identifier "eDP-1")
-	   	   	 (position (point (x 0)
-	   	   			  (y 0)))
-	   	   	 (resolution "1920x1080"))))
+	   	   	(identifier "HDMI-A-1")
+	   	   	(position (point (x 1920)
+	   	   			 (y 1080)))
+	   	   	(resolution "1920x1080@60Hz"))
+	   	          
+	   	          (sway-output
+	   	   	(identifier "eDP-1")
+	   	   	(position (point (x 0)
+	   	   			 (y 0)))
+	   	   	(resolution "1920x1080@60Hz"))))
 	   	   (gestures  '((swipe:3:left . "workspace next_on_output")
 	   	   	     (swipe:3:right    "workspace prev_on_output" . ("exact"))
 	   	   	     (swipe:3:down . "move to scratchpad")
@@ -395,7 +513,8 @@
 	   	      ($mod+Mod1+$down . "resize grow height 50px")
 	   	      ($mod+Mod1+$up . "resize shrink height 50px")
 	   	      ($mod+Mod1+$right . "resize grow width 50px")
-	   	      (Mod1+Tab . "exec /home/light/.qolscripts/switchwindow.s")
+	   	      ;;(Mod1+Tab . "exec /home/light/.qolscripts/switchwindow.sh")
+	   	      ($alt+Tab . "exec rofi -i -show window -show-icons")
 	   	      ($mod+u . "exec rofi -i -show drun -show-icons")
 	   	      ($mod+semicolon . "workspace prev")
 	   	      ($mod+slash . "exec /home/light/.scripts/sway_workspace_change.sh i")
@@ -410,6 +529,9 @@
 	   	      ($mod+Shift+period . "exec /home/light/.scripts/sway_workspace_move.sh d")
 	   	      ($mod+Shift+Tab . "move container to workspace back_and_forth")
 	   	      ($mod+f . "exec firefox")
+	   	      ($mod+Mod1+q . "exec ~/.scripts/kill_focused_window.sh")
+	   	      ($mod+Shift+s . "sticky toggle")
+	   	      (Print . "exec grim -g \"$(slurp -d)\" - | wl-copy")
 	   	         (XF86AudioRaiseVolume . "exec --no-startup-id bash ~/.scripts/volctrl i")
 	   	         (XF86AudioLowerVolume . "exec --no-startup-id bash ~/.scripts/volctrl d")
 	   	         (XF86AudioMute . "exec --no-startup-id bash ~/.scripts/volctrl p")
@@ -443,6 +565,10 @@
 	   	      ($mod+Shift+Down . "move down")
 	   	      ($mod+Shift+Up . "move up")
 	   	      ($mod+Shift+Right . "move right")
+	   	      ($mod+Mod1+Shift+$right . "move workspace to output right")
+	   	      ($mod+Mod1+Shift+$left . "move workspace to output left")
+	   	      ($mod+Mod1+Shift+$down . "move workspace to output down")
+	   	      ($mod+Mod1+Shift+$up . "move workspace to output up")
 	   	      ($mod+1 . "workspace number 1")
 	   	      ($mod+2 . "workspace number 2")
 	   	      ($mod+3 . "workspace number 3")
@@ -479,21 +605,22 @@
 	   	      )
 	   	    )
 	   	   (bar (sway-bar
-	   	          (position 'top)
-	   	          (hidden-state 'show)
+	   	          (position 'bottom)
+	   	          (hidden-state 'hide)
 	   	          (binding-mode-indicator #t)
 	   	          (status-command "i3blocks")
 	   	          (colors (sway-color
-	   	                  (background "#2C2C2C")
-	   	                  (statusline "#DCDCDC")
-	   	                  (focused-workspace unity-orange)
-	   	                  (active-workspace  unity-neutral)
-	   	                  (inactive-workspace unity-dark)
-	   	                  (urgent-workspace  unity-urgent)))))
+	   	   		(background "#2C2C2C")
+	   	   		(statusline "#DCDCDC")
+	   	   		(focused-workspace unity-orange)
+	   	   		(active-workspace  unity-neutral)
+	   	   		(inactive-workspace unity-dark)
+	   	   		(urgent-workspace  unity-urgent)))))
 	   	   (extra-content
 	   	    (append
 	   	     
 	   	     `("default_border pixel 2"
+	   	       "font pango:monospace 8"
 	   	       "assign [class=\"qBittorrent\"] 9"
 	   	       "assign [class=\"discord\"] 10"
 	   	       "assign [class=\"steam\"] 9"
@@ -545,6 +672,7 @@
 	   	     "~/.qolscripts/emacs-daemon.sh"
 	   	     "mako"
 	   	     "transmission-daemon"
+	   	     "blueman-applet"
 	   	     ))
 	   	   ))
 	   
